@@ -16,6 +16,32 @@
         #timer { position: absolute; top: 10px; right: 20px; color: white; font-size: 20px; font-weight: bold; }
         #message { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); 
             color: white; font-size: 40px; font-weight: bold; text-shadow: 2px 2px 4px #000; display: none; }
+        
+        /* Gameplay Enhancement 5: Replay button */
+        #replay-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: rgba(76, 175, 80, 0.9); color: white; font-size: 24px; font-weight: bold; 
+            padding: 15px 40px; border: none; border-radius: 10px; cursor: pointer; pointer-events: auto; display: none; }
+        #replay-btn:hover { background: rgba(76, 175, 80, 1); }
+        
+        /* UI Enhancement 10: Start screen */
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            pointer-events: auto; z-index: 100; }
+        #start-screen h1 { color: white; font-size: 48px; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,0.3); }
+        #start-btn { background: rgba(76, 175, 80, 0.9); color: white; font-size: 28px; font-weight: bold; 
+            padding: 20px 50px; border: none; border-radius: 15px; cursor: pointer; }
+        #start-btn:hover { background: rgba(76, 175, 80, 1); transform: scale(1.05); }
+        #start-screen.hidden { display: none; }
+        
+        /* UI Enhancement 12: Keyboard hints */
+        #keyboard-hints { position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%); 
+            color: white; font-size: 14px; text-align: center; background: rgba(0,0,0,0.5); 
+            padding: 10px 15px; border-radius: 10px; display: none; }
+        #keyboard-hints.show { display: block; }
+        
+        /* UI Enhancement 11: Kick button label */
+        #action-btn-label { color: white; font-weight: bold; font-size: 16px; }
 
         /* Controls */
         .control-zone { position: absolute; bottom: 20px; height: 150px; width: 150px; pointer-events: auto; }
@@ -43,6 +69,12 @@
 
     <div id="game-container"></div>
     
+    <!-- UI Enhancement 10: Start Screen -->
+    <div id="start-screen">
+        <h1>Low Poly Soccer 3v3</h1>
+        <button id="start-btn">Start Game</button>
+    </div>
+    
     <div id="ui-layer">
         <div id="scoreboard">
             <span style="color:#4488ff">BLUE <span id="score-blue">0</span></span>
@@ -52,11 +84,23 @@
         <div id="timer">02:00</div>
         <div id="message">GOAL!</div>
         
+        <!-- Gameplay Enhancement 5: Replay button -->
+        <button id="replay-btn">Play Again</button>
+        
+        <!-- UI Enhancement 12: Keyboard hints -->
+        <div id="keyboard-hints">
+            <div>Movement: WASD or Arrow Keys</div>
+            <div>Kick: Spacebar</div>
+        </div>
+        
         <div id="joystick-zone" class="control-zone">
             <div id="joystick-knob"></div>
         </div>
         <div id="action-zone" class="control-zone">
-            <div id="action-btn"></div>
+            <div id="action-btn">
+                <!-- UI Enhancement 11: Kick button label -->
+                <span id="action-btn-label">KICK</span>
+            </div>
         </div>
     </div>
 
@@ -86,8 +130,9 @@
         let clock, deltaTime;
         let players = [], ball;
         let input = { x: 0, y: 0, action: false, actionCharge: 0 };
-        let gameState = { active: true, scoreBlue: 0, scoreRed: 0, time: CONFIG.matchTime };
+        let gameState = { active: false, scoreBlue: 0, scoreRed: 0, time: CONFIG.matchTime, started: false };
         let controlledPlayerIndex = 0; // User controls Blue 0 initially
+        let timerInterval = null;
 
         // --- PHYSICS MATERIALS ---
         let groundMat, playerMat, ballMat;
@@ -152,8 +197,52 @@
             clock = new THREE.Clock();
             animate();
             
-            // Timer Interval
-            setInterval(() => {
+            // UI Enhancement 10 & 12: Show keyboard hints on non-touch devices
+            if(!('ontouchstart' in window)) {
+                document.getElementById('keyboard-hints').classList.add('show');
+            }
+            
+            // UI Enhancement 10: Setup start button
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            
+            // Gameplay Enhancement 5: Setup replay button
+            document.getElementById('replay-btn').addEventListener('click', replayGame);
+        }
+        
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            gameState.active = true;
+            gameState.started = true;
+            
+            // Start Timer
+            timerInterval = setInterval(() => {
+                if(gameState.active && gameState.time > 0) {
+                    gameState.time--;
+                    updateTimerUI();
+                    if(gameState.time <= 0) endGame();
+                }
+            }, 1000);
+        }
+        
+        function replayGame() {
+            // Reset game state
+            gameState.scoreBlue = 0;
+            gameState.scoreRed = 0;
+            gameState.time = CONFIG.matchTime;
+            gameState.active = true;
+            
+            // Update UI
+            updateScoreUI();
+            updateTimerUI();
+            document.getElementById('message').style.display = 'none';
+            document.getElementById('replay-btn').style.display = 'none';
+            
+            // Reset positions
+            resetPositions();
+            
+            // Restart timer
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
                 if(gameState.active && gameState.time > 0) {
                     gameState.time--;
                     updateTimerUI();
@@ -163,18 +252,26 @@
         }
 
         function createField() {
-            // Visual Grass
-            const geo = new THREE.PlaneGeometry(CONFIG.fieldWidth, CONFIG.fieldLength);
-            const mat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.grass });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.rotation.x = -Math.PI / 2;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
+            // Visual Enhancement 9: Grass with stripes
+            const stripeCount = 10;
+            const stripeWidth = CONFIG.fieldLength / stripeCount;
+            
+            for(let i = 0; i < stripeCount; i++) {
+                const geo = new THREE.PlaneGeometry(CONFIG.fieldWidth, stripeWidth);
+                const shade = i % 2 === 0 ? 0x4caf50 : 0x45a049; // Alternate between two greens
+                const mat = new THREE.MeshStandardMaterial({ color: shade });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = -Math.PI / 2;
+                mesh.position.z = -CONFIG.fieldLength/2 + stripeWidth/2 + i * stripeWidth;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+            }
 
-            // Lines (Simple White Borders)
-            const lineGeo = new THREE.PlaneGeometry(CONFIG.fieldWidth + 1, 1);
+            // Visual Enhancement 7: Field markings
             const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
-            const topLine = new THREE.Mesh(lineGeo, lineMat);
+            
+            // Border lines
+            const topLine = new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.fieldWidth + 1, 0.3), lineMat);
             topLine.position.set(0, 0.01, -CONFIG.fieldLength/2);
             topLine.rotation.x = -Math.PI / 2;
             scene.add(topLine);
@@ -182,18 +279,123 @@
             const bottomLine = topLine.clone();
             bottomLine.position.set(0, 0.01, CONFIG.fieldLength/2);
             scene.add(bottomLine);
-
-            // Goals (Visual)
-            const goalGeo = new THREE.BoxGeometry(10, 4, 1);
-            const goalMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
             
-            const goalBlue = new THREE.Mesh(goalGeo, goalMat);
-            goalBlue.position.set(0, 2, -CONFIG.fieldLength/2 - 0.5);
-            scene.add(goalBlue);
+            const leftLine = new THREE.Mesh(new THREE.PlaneGeometry(0.3, CONFIG.fieldLength), lineMat);
+            leftLine.position.set(-CONFIG.fieldWidth/2, 0.01, 0);
+            leftLine.rotation.x = -Math.PI / 2;
+            scene.add(leftLine);
+            
+            const rightLine = leftLine.clone();
+            rightLine.position.set(CONFIG.fieldWidth/2, 0.01, 0);
+            scene.add(rightLine);
+            
+            // Center line
+            const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.fieldWidth, 0.3), lineMat);
+            centerLine.position.set(0, 0.01, 0);
+            centerLine.rotation.x = -Math.PI / 2;
+            scene.add(centerLine);
+            
+            // Center circle
+            const circleGeo = new THREE.RingGeometry(4.9, 5.1, 32);
+            const circleMesh = new THREE.Mesh(circleGeo, lineMat);
+            circleMesh.position.set(0, 0.01, 0);
+            circleMesh.rotation.x = -Math.PI / 2;
+            scene.add(circleMesh);
+            
+            // Penalty areas
+            const penaltyWidth = 16;
+            const penaltyDepth = 8;
+            
+            // Blue penalty area (top)
+            const bluePenaltyTop = new THREE.Mesh(new THREE.PlaneGeometry(penaltyWidth, 0.3), lineMat);
+            bluePenaltyTop.position.set(0, 0.01, -CONFIG.fieldLength/2 + penaltyDepth);
+            bluePenaltyTop.rotation.x = -Math.PI / 2;
+            scene.add(bluePenaltyTop);
+            
+            const bluePenaltyLeft = new THREE.Mesh(new THREE.PlaneGeometry(0.3, penaltyDepth), lineMat);
+            bluePenaltyLeft.position.set(-penaltyWidth/2, 0.01, -CONFIG.fieldLength/2 + penaltyDepth/2);
+            bluePenaltyLeft.rotation.x = -Math.PI / 2;
+            scene.add(bluePenaltyLeft);
+            
+            const bluePenaltyRight = bluePenaltyLeft.clone();
+            bluePenaltyRight.position.set(penaltyWidth/2, 0.01, -CONFIG.fieldLength/2 + penaltyDepth/2);
+            scene.add(bluePenaltyRight);
+            
+            // Red penalty area (bottom)
+            const redPenaltyTop = new THREE.Mesh(new THREE.PlaneGeometry(penaltyWidth, 0.3), lineMat);
+            redPenaltyTop.position.set(0, 0.01, CONFIG.fieldLength/2 - penaltyDepth);
+            redPenaltyTop.rotation.x = -Math.PI / 2;
+            scene.add(redPenaltyTop);
+            
+            const redPenaltyLeft = new THREE.Mesh(new THREE.PlaneGeometry(0.3, penaltyDepth), lineMat);
+            redPenaltyLeft.position.set(-penaltyWidth/2, 0.01, CONFIG.fieldLength/2 - penaltyDepth/2);
+            redPenaltyLeft.rotation.x = -Math.PI / 2;
+            scene.add(redPenaltyLeft);
+            
+            const redPenaltyRight = redPenaltyLeft.clone();
+            redPenaltyRight.position.set(penaltyWidth/2, 0.01, CONFIG.fieldLength/2 - penaltyDepth/2);
+            scene.add(redPenaltyRight);
 
-            const goalRed = new THREE.Mesh(goalGeo, goalMat);
-            goalRed.position.set(0, 2, CONFIG.fieldLength/2 + 0.5);
-            scene.add(goalRed);
+            // Visual Enhancement 8: Improved goal visuals (posts + crossbar)
+            const postRadius = 0.2;
+            const postHeight = 4;
+            const goalWidth = 10;
+            const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 8);
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            
+            // Blue goal (top)
+            const blueLeftPost = new THREE.Mesh(postGeo, postMat);
+            blueLeftPost.position.set(-goalWidth/2, postHeight/2, -CONFIG.fieldLength/2 - 0.5);
+            blueLeftPost.castShadow = true;
+            scene.add(blueLeftPost);
+            
+            const blueRightPost = blueLeftPost.clone();
+            blueRightPost.position.set(goalWidth/2, postHeight/2, -CONFIG.fieldLength/2 - 0.5);
+            scene.add(blueRightPost);
+            
+            const blueCrossbar = new THREE.Mesh(
+                new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 8),
+                postMat
+            );
+            blueCrossbar.rotation.z = Math.PI / 2;
+            blueCrossbar.position.set(0, postHeight, -CONFIG.fieldLength/2 - 0.5);
+            blueCrossbar.castShadow = true;
+            scene.add(blueCrossbar);
+            
+            // Blue goal net (semi-transparent)
+            const netMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                transparent: true, 
+                opacity: 0.3,
+                side: THREE.DoubleSide 
+            });
+            const netGeo = new THREE.PlaneGeometry(goalWidth, postHeight);
+            const blueNet = new THREE.Mesh(netGeo, netMat);
+            blueNet.position.set(0, postHeight/2, -CONFIG.fieldLength/2 - 0.5);
+            scene.add(blueNet);
+            
+            // Red goal (bottom)
+            const redLeftPost = new THREE.Mesh(postGeo, postMat);
+            redLeftPost.position.set(-goalWidth/2, postHeight/2, CONFIG.fieldLength/2 + 0.5);
+            redLeftPost.castShadow = true;
+            scene.add(redLeftPost);
+            
+            const redRightPost = redLeftPost.clone();
+            redRightPost.position.set(goalWidth/2, postHeight/2, CONFIG.fieldLength/2 + 0.5);
+            scene.add(redRightPost);
+            
+            const redCrossbar = new THREE.Mesh(
+                new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 8),
+                postMat
+            );
+            redCrossbar.rotation.z = Math.PI / 2;
+            redCrossbar.position.set(0, postHeight, CONFIG.fieldLength/2 + 0.5);
+            redCrossbar.castShadow = true;
+            scene.add(redCrossbar);
+            
+            const redNet = new THREE.Mesh(netGeo, netMat);
+            redNet.position.set(0, postHeight/2, CONFIG.fieldLength/2 + 0.5);
+            scene.add(redNet);
 
             // Physics Ground
             const groundBody = new CANNON.Body({
@@ -203,6 +405,42 @@
             });
             groundBody.position.set(0, -0.1, 0);
             world.addBody(groundBody);
+            
+            // Gameplay Enhancement 4: Add invisible walls around field perimeter
+            const wallHeight = 5;
+            const wallThickness = 0.5;
+            
+            // North wall (negative Z)
+            const northWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldWidth/2, wallHeight, wallThickness))
+            });
+            northWall.position.set(0, wallHeight, -CONFIG.fieldLength/2 - wallThickness);
+            world.addBody(northWall);
+            
+            // South wall (positive Z)
+            const southWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldWidth/2, wallHeight, wallThickness))
+            });
+            southWall.position.set(0, wallHeight, CONFIG.fieldLength/2 + wallThickness);
+            world.addBody(southWall);
+            
+            // West wall (negative X)
+            const westWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, CONFIG.fieldLength/2))
+            });
+            westWall.position.set(-CONFIG.fieldWidth/2 - wallThickness, wallHeight, 0);
+            world.addBody(westWall);
+            
+            // East wall (positive X)
+            const eastWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, CONFIG.fieldLength/2))
+            });
+            eastWall.position.set(CONFIG.fieldWidth/2 + wallThickness, wallHeight, 0);
+            world.addBody(eastWall);
             
             // Goal Triggers (Simple boxes behind goals)
             createGoalTrigger(-CONFIG.fieldLength/2 - 2, 'blue');
@@ -263,7 +501,9 @@
             body.angularDamping = 1.0; // Prevent rolling
             world.addBody(body);
 
-            players.push({ mesh, body, team, isUser, startPos: {x, z} });
+            // Bug Fix 1: Assign proper id to each player
+            const playerId = players.length;
+            players.push({ mesh, body, team, isUser, startPos: {x, z}, id: playerId });
         }
 
         function createBall() {
@@ -362,16 +602,17 @@
             actionZone.addEventListener('touchcancel', endAction);
             
             // Keyboard fallback for testing on PC
+            // Gameplay Enhancement 6: Add WASD support
             window.addEventListener('keydown', (e) => {
-                if(e.key === 'ArrowUp') input.y = -1;
-                if(e.key === 'ArrowDown') input.y = 1;
-                if(e.key === 'ArrowLeft') input.x = -1;
-                if(e.key === 'ArrowRight') input.x = 1;
+                if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') input.y = -1;
+                if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') input.y = 1;
+                if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.x = -1;
+                if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.x = 1;
                 if(e.key === ' ') input.action = true;
             });
             window.addEventListener('keyup', (e) => {
-                if(['ArrowUp','ArrowDown'].includes(e.key)) input.y = 0;
-                if(['ArrowLeft','ArrowRight'].includes(e.key)) input.x = 0;
+                if(['ArrowUp','ArrowDown','w','W','s','S'].includes(e.key)) input.y = 0;
+                if(['ArrowLeft','ArrowRight','a','A','d','D'].includes(e.key)) input.x = 0;
                 if(e.key === ' ') input.action = false;
             });
         }
@@ -405,10 +646,21 @@
                         // Check distance to ball
                         const dist = p.body.position.distanceTo(ball.body.position);
                         if(dist < 2.5) {
-                            // Kick
+                            // Bug Fix 3: Kick in direction of movement or toward goal if stationary
                             const kickDir = new CANNON.Vec3();
-                            p.body.quaternion.vmult(new CANNON.Vec3(0, 0, 1), kickDir); // Forward relative to player
-                            // Actually, kick towards where player is moving or facing
+                            const speed = p.body.velocity.length();
+                            
+                            if(speed > 0.5) {
+                                // Kick in direction of movement
+                                kickDir.copy(p.body.velocity);
+                                kickDir.normalize();
+                            } else {
+                                // Kick toward opponent goal if stationary
+                                const goalZ = p.team === 'blue' ? CONFIG.fieldLength/2 : -CONFIG.fieldLength/2;
+                                kickDir.set(0, 0, goalZ - ball.body.position.z);
+                                kickDir.normalize();
+                            }
+                            
                             const kickForce = 20;
                             ball.body.applyImpulse(new CANNON.Vec3(kickDir.x * kickForce, 2, kickDir.z * kickForce), ball.body.position);
                             input.action = false; // Consume input
@@ -461,8 +713,8 @@
             // Apply force
             p.body.applyForce(new CANNON.Vec3(dir.x * speed, 0, dir.z * speed), p.body.position);
 
-            // Kick if close
-            if(distToBall < 2.5 && p.team === 'red') { // Only opponents actively kick towards goal for simplicity
+            // Bug Fix 2: Both teams should kick the ball
+            if(distToBall < 2.5) {
                  // Check if between ball and goal
                  if((p.team === 'blue' && ballPos.z < myPos.z) || (p.team === 'red' && ballPos.z > myPos.z)) {
                     const kickForce = 15;
@@ -510,6 +762,9 @@
             const msg = document.getElementById('message');
             msg.innerText = gameState.scoreBlue > gameState.scoreRed ? "BLUE WINS!" : (gameState.scoreRed > gameState.scoreBlue ? "RED WINS!" : "DRAW!");
             msg.style.display = 'block';
+            
+            // Gameplay Enhancement 5: Show replay button
+            document.getElementById('replay-btn').style.display = 'block';
         }
 
         function updateScoreUI() {
