@@ -655,17 +655,17 @@
             rightArm.castShadow = true;
             playerGroup.add(rightArm);
             
-            // Legs (cylinders)
+            // Legs (cylinders) - height 0.8, position so bottom is at ground
             const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6);
             const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             
             const leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.25, -0.8, 0); // was 0, now 0 - 0.8 = -0.8
+            leftLeg.position.set(-0.25, -0.4, 0); // Cylinder center: -0.4, extends from -0.8 to 0
             leftLeg.castShadow = true;
             playerGroup.add(leftLeg);
             
             const rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.25, -0.8, 0); // was 0, now 0 - 0.8 = -0.8
+            rightLeg.position.set(0.25, -0.4, 0); // Cylinder center: -0.4, extends from -0.8 to 0
             rightLeg.castShadow = true;
             playerGroup.add(rightLeg);
             
