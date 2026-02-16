@@ -42,6 +42,12 @@
         #action-btn { width: 80px; height: 80px; background: rgba(255, 200, 0, 0.5); border-radius: 50%; border: 2px solid white; }
         #action-btn.active { background: rgba(255, 200, 0, 0.8); transform: scale(0.95); }
         #action-label { color: white; font-weight: bold; font-size: 18px; margin-top: 10px; }
+        #switch-zone { right: 20px; bottom: 190px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); 
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; 
+            align-items: center; flex-direction: column; }
+        #switch-btn { width: 70px; height: 70px; background: rgba(100, 200, 255, 0.5); border-radius: 50%; border: 2px solid white; }
+        #switch-btn.active { background: rgba(100, 200, 255, 0.8); transform: scale(0.95); }
+        #switch-label { color: white; font-weight: bold; font-size: 14px; margin-top: 8px; }
         
         /* Joystick Knob */
         #joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; 
@@ -97,6 +103,10 @@
         <div id="action-zone" class="control-zone">
             <div id="action-btn"></div>
             <div id="action-label">KICK</div>
+        </div>
+        <div id="switch-zone" class="control-zone" style="right: 20px; bottom: 190px;">
+            <div id="switch-btn"></div>
+            <div id="switch-label">SWITCH</div>
         </div>
     </div>
 
@@ -205,7 +215,7 @@
                 friction: 0.8, restitution: 0.0 
             });
             const ballGroundContact = new CANNON.ContactMaterial(ballMat, groundMat, { 
-                friction: CONFIG.ballFriction, restitution: 0.6 
+                friction: CONFIG.ballFriction, restitution: 0.3 
             });
             const ballPlayerContact = new CANNON.ContactMaterial(ballMat, playerMat, { 
                 friction: 0.5, restitution: 0.4 
@@ -228,6 +238,7 @@
                 document.getElementById('keyboard-hints').style.display = 'block';
                 document.getElementById('joystick-zone').style.display = 'none';
                 document.getElementById('action-zone').style.display = 'none';
+                document.getElementById('switch-zone').style.display = 'none';
             }
             
             clock = new THREE.Clock();
@@ -331,9 +342,21 @@
             circleMesh.position.y = 0.02;
             scene.add(circleMesh);
 
-            // Penalty areas (left and right)
-            createPenaltyArea(-CONFIG.fieldLength/2 + 8, 12, 18);
-            createPenaltyArea(CONFIG.fieldLength/2 - 8, 12, 18);
+            // Penalty areas (18-yard boxes) near goals
+            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 16.5);
+            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 16.5);
+            
+            // Goal areas (6-yard boxes) near goals
+            createGoalArea(-CONFIG.fieldLength/2, 6, 5.5);
+            createGoalArea(CONFIG.fieldLength/2, 6, 5.5);
+            
+            // Penalty spots
+            createPenaltySpot(-CONFIG.fieldLength/2 + 11);
+            createPenaltySpot(CONFIG.fieldLength/2 - 11);
+            
+            // Penalty arcs
+            createPenaltyArc(-CONFIG.fieldLength/2 + 11);
+            createPenaltyArc(CONFIG.fieldLength/2 - 11);
 
             // Corner arcs
             createCornerArc(-CONFIG.fieldLength/2, -CONFIG.fieldWidth/2);
@@ -384,6 +407,47 @@
             const line3 = line2.clone();
             line3.position.z = length/2;
             scene.add(line3);
+        }
+
+        function createGoalArea(x, width, length) {
+            const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
+            const side = x < 0 ? 1 : -1;
+            
+            // Three lines forming goal box (6-yard box)
+            const geo1 = new THREE.PlaneGeometry(0.2, length);
+            const line1 = new THREE.Mesh(geo1, lineMat);
+            line1.rotation.x = -Math.PI / 2;
+            line1.position.set(x + side * width, 0.02, 0);
+            scene.add(line1);
+            
+            const geo2 = new THREE.PlaneGeometry(width, 0.2);
+            const line2 = new THREE.Mesh(geo2, lineMat);
+            line2.rotation.x = -Math.PI / 2;
+            line2.position.set(x + side * width/2, 0.02, -length/2);
+            scene.add(line2);
+            
+            const line3 = line2.clone();
+            line3.position.z = length/2;
+            scene.add(line3);
+        }
+
+        function createPenaltySpot(x) {
+            const spotGeo = new THREE.CircleGeometry(0.3, 16);
+            const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
+            const spot = new THREE.Mesh(spotGeo, lineMat);
+            spot.rotation.x = -Math.PI / 2;
+            spot.position.set(x, 0.02, 0);
+            scene.add(spot);
+        }
+
+        function createPenaltyArc(x) {
+            const arcGeo = new THREE.RingGeometry(9.1, 9.3, 32, 1, 0, Math.PI);
+            const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
+            const arc = new THREE.Mesh(arcGeo, lineMat);
+            arc.rotation.x = -Math.PI / 2;
+            arc.rotation.z = x < 0 ? Math.PI/2 : -Math.PI/2;
+            arc.position.set(x, 0.02, 0);
+            scene.add(arc);
         }
 
         function createCornerArc(x, z) {
@@ -612,9 +676,10 @@
             const shape = new CANNON.Sphere(0.8);
             const body = new CANNON.Body({ mass: 5, material: playerMat });
             body.addShape(shape);
-            body.position.set(x, 2, z);
-            body.linearDamping = 0.7;
-            body.angularDamping = 1.0;
+            body.position.set(x, 0.8, z);
+            body.linearDamping = 0.9;
+            body.angularDamping = 0.99;
+            body.fixedRotation = true;
             world.addBody(body);
 
             const roles = ['attacker', 'midfielder', 'defender'];
@@ -674,7 +739,8 @@
             const body = new CANNON.Body({ mass: 1, material: ballMat });
             body.addShape(shape);
             body.position.set(0, 2, 0);
-            body.linearDamping = 0.5;
+            body.linearDamping = 0.7;
+            body.angularDamping = 0.8;
             world.addBody(body);
 
             // Ball shadow
@@ -768,6 +834,23 @@
             };
             actionZone.addEventListener('touchend', endAction);
             actionZone.addEventListener('touchcancel', endAction);
+
+            // Switch Button
+            const switchZone = document.getElementById('switch-zone');
+            const switchBtn = document.getElementById('switch-btn');
+            
+            switchZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                switchBtn.classList.add('active');
+                switchToNearestPlayer();
+            }, {passive: false});
+
+            const endSwitch = (e) => {
+                e.preventDefault();
+                switchBtn.classList.remove('active');
+            };
+            switchZone.addEventListener('touchend', endSwitch);
+            switchZone.addEventListener('touchcancel', endSwitch);
             
             // Keyboard support - WASD + Arrow keys
             window.addEventListener('keydown', (e) => {
@@ -929,13 +1012,20 @@
 
             // Update players
             players.forEach((p, index) => {
-                p.mesh.position.copy(p.body.position);
-                p.mesh.quaternion.copy(p.body.quaternion);
-
-                if(p.body.position.y < 1) {
-                    p.body.position.y = 1;
+                // Clamp player body to minimum height to prevent clipping
+                if(p.body.position.y < 0.8) {
+                    p.body.position.y = 0.8;
                     p.body.velocity.y = 0;
                 }
+                
+                // Keep player body upright (prevent rolling)
+                p.body.quaternion.set(0, 0, 0, 1);
+                p.body.angularVelocity.set(0, 0, 0);
+                
+                // Update mesh position to match body
+                p.mesh.position.copy(p.body.position);
+                // Keep mesh upright (don't copy quaternion from body)
+                p.mesh.rotation.y = 0;
 
                 if(p.isUser) {
                     updateUserPlayer(p);
