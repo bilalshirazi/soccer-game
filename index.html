@@ -472,37 +472,37 @@
             
             // Left side walls (X = -fieldLength/2, two segments with gap for goal)
             // Top segment: from z = goalWidth/2 (5) to z = fieldWidth/2 (15)
-            const leftTopSegmentLength = (CONFIG.fieldWidth/2 - goalWidth/2) / 2; // Half-length of segment
+            const wallSegmentHalfLength = (CONFIG.fieldWidth/2 - goalWidth/2) / 2; // Half-length of segment
             const leftTopWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, leftTopSegmentLength))
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
             });
-            leftTopWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, goalWidth/2 + leftTopSegmentLength);
+            leftTopWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, goalWidth/2 + wallSegmentHalfLength);
             world.addBody(leftTopWall);
             
             // Bottom segment: from z = -fieldWidth/2 (-15) to z = -goalWidth/2 (-5)
             const leftBottomWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, leftTopSegmentLength))
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
             });
-            leftBottomWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, -goalWidth/2 - leftTopSegmentLength);
+            leftBottomWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, -goalWidth/2 - wallSegmentHalfLength);
             world.addBody(leftBottomWall);
             
             // Right side walls (X = fieldLength/2, two segments with gap for goal)
             // Top segment: from z = goalWidth/2 (5) to z = fieldWidth/2 (15)
             const rightTopWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, leftTopSegmentLength))
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
             });
-            rightTopWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, goalWidth/2 + leftTopSegmentLength);
+            rightTopWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, goalWidth/2 + wallSegmentHalfLength);
             world.addBody(rightTopWall);
             
             // Bottom segment: from z = -fieldWidth/2 (-15) to z = -goalWidth/2 (-5)
             const rightBottomWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, leftTopSegmentLength))
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
             });
-            rightBottomWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, -goalWidth/2 - leftTopSegmentLength);
+            rightBottomWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, -goalWidth/2 - wallSegmentHalfLength);
             world.addBody(rightBottomWall);
             
             // Back walls behind each goal to prevent ball from escaping through goals
