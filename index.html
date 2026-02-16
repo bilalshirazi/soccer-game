@@ -679,7 +679,6 @@
             body.position.set(x, 0.8, z);
             body.linearDamping = 0.9;
             body.angularDamping = 0.99;
-            body.fixedRotation = true;
             world.addBody(body);
 
             const roles = ['attacker', 'midfielder', 'defender'];
@@ -1018,19 +1017,24 @@
                     p.body.velocity.y = 0;
                 }
                 
-                // Keep player body upright (prevent rolling on x/z axes)
-                // Reset angular velocity to prevent continuous rotation
-                p.body.angularVelocity.set(0, 0, 0);
+                // Prevent rolling (x/z rotation) but allow turning (y rotation)
+                p.body.angularVelocity.x = 0;
+                p.body.angularVelocity.z = 0;
                 
-                // Update mesh position to match body
+                // Update mesh position and rotation
                 p.mesh.position.copy(p.body.position);
                 
-                // Allow y-rotation for facing direction, but prevent x/z rotation (rolling)
+                // Keep player upright by zeroing x/z rotation, preserve y-rotation for facing
                 const euler = new THREE.Euler();
                 euler.setFromQuaternion(p.body.quaternion, 'YXZ');
+                
+                // Only correct if tilted significantly (threshold to avoid constant corrections)
+                if(Math.abs(euler.x) > 0.01 || Math.abs(euler.z) > 0.01) {
+                    p.body.quaternion.setFromEuler(0, euler.y, 0, 'XYZ');
+                }
+                
+                // Update mesh to match body rotation
                 p.mesh.rotation.set(0, euler.y, 0);
-                // Reset body orientation to upright with preserved y-rotation
-                p.body.quaternion.setFromEuler(0, euler.y, 0, 'XYZ');
 
                 if(p.isUser) {
                     updateUserPlayer(p);
