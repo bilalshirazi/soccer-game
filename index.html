@@ -341,12 +341,12 @@
             scene.add(circleMesh);
 
             // Penalty areas (18-yard boxes) near goals
-            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 16.5);
-            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 16.5);
+            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 18);
+            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 18);
             
             // Goal areas (6-yard boxes) near goals
-            createGoalArea(-CONFIG.fieldLength/2, 6, 5.5);
-            createGoalArea(CONFIG.fieldLength/2, 6, 5.5);
+            createGoalArea(-CONFIG.fieldLength/2, 5.5, 9);
+            createGoalArea(CONFIG.fieldLength/2, 5.5, 9);
             
             // Penalty spots
             createPenaltySpot(-CONFIG.fieldLength/2 + 11);
@@ -674,7 +674,7 @@
             const shape = new CANNON.Sphere(0.8);
             const body = new CANNON.Body({ mass: 5, material: playerMat });
             body.addShape(shape);
-            body.position.set(x, 0.8, z);
+            body.position.set(x, 0.4, z);
             body.linearDamping = 0.9;
             body.angularDamping = 0.99;
             world.addBody(body);
@@ -1010,8 +1010,8 @@
             // Update players
             players.forEach((p, index) => {
                 // Clamp player body to minimum height to prevent clipping
-                if(p.body.position.y < 0.8) {
-                    p.body.position.y = 0.8;
+                if(p.body.position.y < 0.4) {
+                    p.body.position.y = 0.4;
                     p.body.velocity.y = 0;
                 }
                 
