@@ -104,7 +104,7 @@
             <div id="action-btn"></div>
             <div id="action-label">KICK</div>
         </div>
-        <div id="switch-zone" class="control-zone" style="right: 20px; bottom: 190px;">
+        <div id="switch-zone" class="control-zone">
             <div id="switch-btn"></div>
             <div id="switch-label">SWITCH</div>
         </div>
@@ -1018,14 +1018,19 @@
                     p.body.velocity.y = 0;
                 }
                 
-                // Keep player body upright (prevent rolling)
-                p.body.quaternion.set(0, 0, 0, 1);
+                // Keep player body upright (prevent rolling on x/z axes)
+                // Reset angular velocity to prevent continuous rotation
                 p.body.angularVelocity.set(0, 0, 0);
                 
                 // Update mesh position to match body
                 p.mesh.position.copy(p.body.position);
-                // Keep mesh upright (don't copy quaternion from body)
-                p.mesh.rotation.y = 0;
+                
+                // Allow y-rotation for facing direction, but prevent x/z rotation (rolling)
+                const euler = new THREE.Euler();
+                euler.setFromQuaternion(p.body.quaternion, 'YXZ');
+                p.mesh.rotation.set(0, euler.y, 0);
+                // Reset body orientation to upright with preserved y-rotation
+                p.body.quaternion.setFromEuler(0, euler.y, 0, 'XYZ');
 
                 if(p.isUser) {
                     updateUserPlayer(p);
