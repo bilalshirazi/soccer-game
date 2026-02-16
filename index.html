@@ -349,6 +349,13 @@
             // Depth: 5.5 units (6 yards scaled), Width: 11 units (20 yards scaled)
             createGoalArea(-CONFIG.fieldLength/2, 5.5, 11);
             createGoalArea(CONFIG.fieldLength/2, 5.5, 11);
+            // Penalty areas (18-yard boxes) near goals
+            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 18);
+            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 18);
+            
+            // Goal areas (6-yard boxes) near goals
+            createGoalArea(-CONFIG.fieldLength/2, 5.5, 9);
+            createGoalArea(CONFIG.fieldLength/2, 5.5, 9);
             
             // Penalty spots - 11 units from goal line (12 yards scaled)
             createPenaltySpot(-CONFIG.fieldLength/2 + 11);
