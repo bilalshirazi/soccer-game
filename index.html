@@ -625,11 +625,11 @@
             // LOW-POLY HUMANOID
             const playerGroup = new THREE.Group();
             
-            // Head (sphere) - adjusted so feet are at ground when body is at Y=0.8
+            // Head (sphere) - positioned so whole body is properly aligned with physics body at Y=0.8
             const headGeo = new THREE.SphereGeometry(0.4, 8, 8);
             const headMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
             const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 0.8; // was 1.6, now 1.6 - 0.8 = 0.8
+            head.position.y = 0.8; // Y=0.8 in group space = Y=1.6 in world (head center)
             head.castShadow = true;
             playerGroup.add(head);
             
@@ -637,7 +637,7 @@
             const torsoGeo = new THREE.BoxGeometry(0.8, 1, 0.5);
             const torsoMat = new THREE.MeshStandardMaterial({ color });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.y = 0; // was 0.8, now 0.8 - 0.8 = 0
+            torso.position.y = 0; // Y=0 in group space = Y=0.8 in world (torso center)
             torso.castShadow = true;
             playerGroup.add(torso);
             
@@ -646,26 +646,28 @@
             const armMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
             
             const leftArm = new THREE.Mesh(armGeo, armMat);
-            leftArm.position.set(-0.5, -0.1, 0); // was 0.7, now 0.7 - 0.8 = -0.1
+            leftArm.position.set(-0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
             leftArm.castShadow = true;
             playerGroup.add(leftArm);
             
             const rightArm = new THREE.Mesh(armGeo, armMat);
-            rightArm.position.set(0.5, -0.1, 0); // was 0.7, now 0.7 - 0.8 = -0.1
+            rightArm.position.set(0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
             rightArm.castShadow = true;
             playerGroup.add(rightArm);
             
-            // Legs (cylinders) - height 0.8, position so bottom is at ground
+            // Legs (cylinders) - height 0.8, positioned so feet touch ground when body at Y=0.8
             const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6);
             const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             
             const leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.25, -0.4, 0); // Cylinder center: -0.4, extends from -0.8 to 0
+            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
+            leftLeg.position.set(-0.25, -0.4, 0);
             leftLeg.castShadow = true;
             playerGroup.add(leftLeg);
             
             const rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.25, -0.4, 0); // Cylinder center: -0.4, extends from -0.8 to 0
+            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
+            rightLeg.position.set(0.25, -0.4, 0);
             rightLeg.castShadow = true;
             playerGroup.add(rightLeg);
             
@@ -674,7 +676,7 @@
                 const arrowGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
                 const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
                 const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-                arrow.position.y = 1.7; // was 2.5, now 2.5 - 0.8 = 1.7
+                arrow.position.y = 1.7; // Y=1.7 in group space = Y=2.5 in world (above head)
                 playerGroup.add(arrow);
                 playerGroup.userData.arrow = arrow;
             }
