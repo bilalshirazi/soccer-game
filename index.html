@@ -42,9 +42,7 @@
         #action-btn { width: 80px; height: 80px; background: rgba(255, 200, 0, 0.5); border-radius: 50%; border: 2px solid white; }
         #action-btn.active { background: rgba(255, 200, 0, 0.8); transform: scale(0.95); }
         #action-label { color: white; font-weight: bold; font-size: 18px; margin-top: 10px; }
-        #switch-zone { right: 20px; bottom: 190px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); 
-            border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; 
-            align-items: center; flex-direction: column; }
+        #switch-zone { right: 20px; bottom: 190px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; flex-direction: column; }
         #switch-btn { width: 70px; height: 70px; background: rgba(100, 200, 255, 0.5); border-radius: 50%; border: 2px solid white; }
         #switch-btn.active { background: rgba(100, 200, 255, 0.8); transform: scale(0.95); }
         #switch-label { color: white; font-weight: bold; font-size: 14px; margin-top: 8px; }
@@ -1030,7 +1028,9 @@
                 
                 // Only correct if tilted significantly (threshold to avoid constant corrections)
                 if(Math.abs(euler.x) > 0.01 || Math.abs(euler.z) > 0.01) {
-                    p.body.quaternion.setFromEuler(0, euler.y, 0, 'XYZ');
+                    const uprightEuler = new THREE.Euler(0, euler.y, 0, 'XYZ');
+                    const uprightQuat = new THREE.Quaternion().setFromEuler(uprightEuler);
+                    p.body.quaternion.copy(uprightQuat);
                 }
                 
                 // Update mesh to match body rotation
