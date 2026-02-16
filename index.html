@@ -340,6 +340,15 @@
             circleMesh.position.y = 0.02;
             scene.add(circleMesh);
 
+            // Penalty areas (18-yard boxes) - realistic proportions
+            // Depth: 16.5 units (18 yards scaled), Width: 20 units (44 yards scaled)
+            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 20);
+            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 20);
+            
+            // Goal areas (6-yard boxes) - realistic proportions
+            // Depth: 5.5 units (6 yards scaled), Width: 11 units (20 yards scaled)
+            createGoalArea(-CONFIG.fieldLength/2, 5.5, 11);
+            createGoalArea(CONFIG.fieldLength/2, 5.5, 11);
             // Penalty areas (18-yard boxes) near goals
             createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 18);
             createPenaltyArea(CONFIG.fieldLength/2, 16.5, 18);
@@ -348,11 +357,11 @@
             createGoalArea(-CONFIG.fieldLength/2, 5.5, 9);
             createGoalArea(CONFIG.fieldLength/2, 5.5, 9);
             
-            // Penalty spots
+            // Penalty spots - 11 units from goal line (12 yards scaled)
             createPenaltySpot(-CONFIG.fieldLength/2 + 11);
             createPenaltySpot(CONFIG.fieldLength/2 - 11);
             
-            // Penalty arcs
+            // Penalty arcs - centered on penalty spot
             createPenaltyArc(-CONFIG.fieldLength/2 + 11);
             createPenaltyArc(CONFIG.fieldLength/2 - 11);
 
@@ -385,48 +394,57 @@
             world.addBody(groundBody);
         }
 
-        function createPenaltyArea(x, width, length) {
+        function createPenaltyArea(goalLineX, depth, width) {
+            // Creates a penalty box extending from goal line toward midfield
+            // goalLineX: X position of goal line (±fieldLength/2)
+            // depth: how far the box extends toward midfield (X-direction)
+            // width: width of the box across field (Z-direction)
             const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
-            const side = x < 0 ? 1 : -1;
+            const direction = goalLineX < 0 ? 1 : -1; // Left goal extends right, right goal extends left
             
-            // Three lines forming penalty box
-            const geo1 = new THREE.PlaneGeometry(0.2, length);
-            const line1 = new THREE.Mesh(geo1, lineMat);
-            line1.rotation.x = -Math.PI / 2;
-            line1.position.set(x, 0.02, 0);
-            scene.add(line1);
+            // Line parallel to goal (farthest from goal)
+            const farLineGeo = new THREE.PlaneGeometry(0.2, width);
+            const farLine = new THREE.Mesh(farLineGeo, lineMat);
+            farLine.rotation.x = -Math.PI / 2;
+            farLine.position.set(goalLineX + direction * depth, 0.02, 0);
+            scene.add(farLine);
             
-            const geo2 = new THREE.PlaneGeometry(width, 0.2);
-            const line2 = new THREE.Mesh(geo2, lineMat);
-            line2.rotation.x = -Math.PI / 2;
-            line2.position.set(x + side * width/2, 0.02, -length/2);
-            scene.add(line2);
+            // Top line (perpendicular to goal)
+            const topLineGeo = new THREE.PlaneGeometry(depth, 0.2);
+            const topLine = new THREE.Mesh(topLineGeo, lineMat);
+            topLine.rotation.x = -Math.PI / 2;
+            topLine.position.set(goalLineX + direction * depth/2, 0.02, width/2);
+            scene.add(topLine);
             
-            const line3 = line2.clone();
-            line3.position.z = length/2;
-            scene.add(line3);
+            // Bottom line (perpendicular to goal)
+            const bottomLine = topLine.clone();
+            bottomLine.position.z = -width/2;
+            scene.add(bottomLine);
         }
 
-        function createGoalArea(x, width, length) {
+        function createGoalArea(goalLineX, depth, width) {
+            // Creates a goal box (6-yard box) extending from goal line
             const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.line });
-            const side = x < 0 ? 1 : -1;
+            const direction = goalLineX < 0 ? 1 : -1;
             
-            // Three lines forming goal box (6-yard box)
-            const geo1 = new THREE.PlaneGeometry(0.2, length);
-            const line1 = new THREE.Mesh(geo1, lineMat);
-            line1.rotation.x = -Math.PI / 2;
-            line1.position.set(x + side * width, 0.02, 0);
-            scene.add(line1);
+            // Line parallel to goal (farthest from goal)
+            const farLineGeo = new THREE.PlaneGeometry(0.2, width);
+            const farLine = new THREE.Mesh(farLineGeo, lineMat);
+            farLine.rotation.x = -Math.PI / 2;
+            farLine.position.set(goalLineX + direction * depth, 0.02, 0);
+            scene.add(farLine);
             
-            const geo2 = new THREE.PlaneGeometry(width, 0.2);
-            const line2 = new THREE.Mesh(geo2, lineMat);
-            line2.rotation.x = -Math.PI / 2;
-            line2.position.set(x + side * width/2, 0.02, -length/2);
-            scene.add(line2);
+            // Top line (perpendicular to goal)
+            const topLineGeo = new THREE.PlaneGeometry(depth, 0.2);
+            const topLine = new THREE.Mesh(topLineGeo, lineMat);
+            topLine.rotation.x = -Math.PI / 2;
+            topLine.position.set(goalLineX + direction * depth/2, 0.02, width/2);
+            scene.add(topLine);
             
-            const line3 = line2.clone();
-            line3.position.z = length/2;
-            scene.add(line3);
+            // Bottom line (perpendicular to goal)
+            const bottomLine = topLine.clone();
+            bottomLine.position.z = -width/2;
+            scene.add(bottomLine);
         }
 
         function createPenaltySpot(x) {
@@ -614,11 +632,11 @@
             // LOW-POLY HUMANOID
             const playerGroup = new THREE.Group();
             
-            // Head (sphere)
+            // Head (sphere) - positioned so whole body is properly aligned with physics body at Y=0.8
             const headGeo = new THREE.SphereGeometry(0.4, 8, 8);
             const headMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
             const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 1.6;
+            head.position.y = 0.8; // Y=0.8 in group space = Y=1.6 in world (head center)
             head.castShadow = true;
             playerGroup.add(head);
             
@@ -626,7 +644,7 @@
             const torsoGeo = new THREE.BoxGeometry(0.8, 1, 0.5);
             const torsoMat = new THREE.MeshStandardMaterial({ color });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.y = 0.8;
+            torso.position.y = 0; // Y=0 in group space = Y=0.8 in world (torso center)
             torso.castShadow = true;
             playerGroup.add(torso);
             
@@ -635,26 +653,28 @@
             const armMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
             
             const leftArm = new THREE.Mesh(armGeo, armMat);
-            leftArm.position.set(-0.5, 0.7, 0);
+            leftArm.position.set(-0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
             leftArm.castShadow = true;
             playerGroup.add(leftArm);
             
             const rightArm = new THREE.Mesh(armGeo, armMat);
-            rightArm.position.set(0.5, 0.7, 0);
+            rightArm.position.set(0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
             rightArm.castShadow = true;
             playerGroup.add(rightArm);
             
-            // Legs (cylinders)
+            // Legs (cylinders) - height 0.8, positioned so feet touch ground when body at Y=0.8
             const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6);
             const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
             
             const leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.25, 0, 0);
+            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
+            leftLeg.position.set(-0.25, -0.4, 0);
             leftLeg.castShadow = true;
             playerGroup.add(leftLeg);
             
             const rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.25, 0, 0);
+            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
+            rightLeg.position.set(0.25, -0.4, 0);
             rightLeg.castShadow = true;
             playerGroup.add(rightLeg);
             
@@ -663,7 +683,7 @@
                 const arrowGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
                 const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
                 const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-                arrow.position.y = 2.5;
+                arrow.position.y = 1.7; // Y=1.7 in group space = Y=2.5 in world (above head)
                 playerGroup.add(arrow);
                 playerGroup.userData.arrow = arrow;
             }
