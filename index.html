@@ -428,7 +428,7 @@
             // Crossbar
             const crossbarGeo = new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 8);
             const crossbar = new THREE.Mesh(crossbarGeo, postMat);
-            crossbar.rotation.z = Math.PI / 2;
+            crossbar.rotation.x = Math.PI / 2;
             crossbar.position.set(x, postHeight, 0);
             crossbar.castShadow = true;
             scene.add(crossbar);
@@ -468,32 +468,69 @@
             const wallHeight = 5;
             const wallThickness = 1;
             
-            // Left and Right walls (along Z-axis)
-            const leftWall = new CANNON.Body({
-                mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, CONFIG.fieldWidth/2))
-            });
-            leftWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, 0);
-            world.addBody(leftWall);
+            const goalWidth = 10; // Goal width (matches createGoal function)
             
-            const rightWall = new CANNON.Body({
+            // Left side walls (X = -fieldLength/2, two segments with gap for goal)
+            // Top segment: from z = goalWidth/2 (5) to z = fieldWidth/2 (15)
+            const wallSegmentHalfLength = (CONFIG.fieldWidth/2 - goalWidth/2) / 2; // Half-length of segment
+            const leftTopWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, CONFIG.fieldWidth/2))
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
             });
-            rightWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, 0);
-            world.addBody(rightWall);
+            leftTopWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, goalWidth/2 + wallSegmentHalfLength);
+            world.addBody(leftTopWall);
             
-            // Front and Back walls (along X-axis, shorter to allow goals)
+            // Bottom segment: from z = -fieldWidth/2 (-15) to z = -goalWidth/2 (-5)
+            const leftBottomWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
+            });
+            leftBottomWall.position.set(-CONFIG.fieldLength/2 - wallThickness, wallHeight, -goalWidth/2 - wallSegmentHalfLength);
+            world.addBody(leftBottomWall);
+            
+            // Right side walls (X = fieldLength/2, two segments with gap for goal)
+            // Top segment: from z = goalWidth/2 (5) to z = fieldWidth/2 (15)
+            const rightTopWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
+            });
+            rightTopWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, goalWidth/2 + wallSegmentHalfLength);
+            world.addBody(rightTopWall);
+            
+            // Bottom segment: from z = -fieldWidth/2 (-15) to z = -goalWidth/2 (-5)
+            const rightBottomWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, wallSegmentHalfLength))
+            });
+            rightBottomWall.position.set(CONFIG.fieldLength/2 + wallThickness, wallHeight, -goalWidth/2 - wallSegmentHalfLength);
+            world.addBody(rightBottomWall);
+            
+            // Back walls behind each goal to prevent ball from escaping through goals
+            const leftGoalBackWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, goalWidth/2))
+            });
+            leftGoalBackWall.position.set(-CONFIG.fieldLength/2 - 4, wallHeight, 0);
+            world.addBody(leftGoalBackWall);
+            
+            const rightGoalBackWall = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Box(new CANNON.Vec3(wallThickness, wallHeight, goalWidth/2))
+            });
+            rightGoalBackWall.position.set(CONFIG.fieldLength/2 + 4, wallHeight, 0);
+            world.addBody(rightGoalBackWall);
+            
+            // Front and Back walls (along X-axis, now full length since goals are on sides)
             const backWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldLength/2 - 5, wallHeight, wallThickness))
+                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldLength/2 + 5, wallHeight, wallThickness))
             });
             backWall.position.set(0, wallHeight, -CONFIG.fieldWidth/2 - wallThickness);
             world.addBody(backWall);
             
             const frontWall = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldLength/2 - 5, wallHeight, wallThickness))
+                shape: new CANNON.Box(new CANNON.Vec3(CONFIG.fieldLength/2 + 5, wallHeight, wallThickness))
             });
             frontWall.position.set(0, wallHeight, CONFIG.fieldWidth/2 + wallThickness);
             world.addBody(frontWall);
