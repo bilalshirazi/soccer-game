@@ -134,24 +134,24 @@
 
         // --- CONFIGURATION ---
         const CONFIG = {
-            fieldLength: 60, // X-axis (Futsal-like 60 units)
-            fieldWidth: 40, // Z-axis (Futsal-like 40 units)
-            playerSpeed: 200, // Slightly faster
-            aiSpeed: 140, 
-            ballFriction: 0.2, // Slightly more friction for control
-            playerFriction: 0.5,
+            fieldLength: 60, 
+            fieldWidth: 40, 
+            playerSpeed: 450, // CRANKED UP
+            aiSpeed: 250, 
+            ballFriction: 0.1, 
+            playerFriction: 0.1,
             matchTime: 120,
             halftimeAt: 60,
-            kickCooldown: 250, // Faster reactions
-            sprintMultiplier: 1.5,
+            kickCooldown: 200, 
+            sprintMultiplier: 1.8,
             maxStamina: 100,
-            staminaDrainRate: 20,
-            staminaRegenRate: 40,
-            kickPower: 50, // More punchy
-            aiKickPower: 35,
-            dribbleFactor: 0.4, // Brisk pull
+            staminaDrainRate: 15,
+            staminaRegenRate: 50,
+            kickPower: 80, // BIG KICK
+            aiKickPower: 50,
+            dribbleFactor: 0.8, // VERY SNAP TO BALL
             dribbleReach: 3.5,
-            playerDamping: 0.9,
+            playerDamping: 0.8,
             shadowMinScale: 0.3,
             shadowScaleFactor: 0.15,
             shadowMinOpacity: 0.2,
@@ -1113,7 +1113,7 @@
                     let diff = targetAngle - currentAngle;
                     while (diff > Math.PI) diff -= Math.PI * 2;
                     while (diff < -Math.PI) diff += Math.PI * 2;
-                    p.mesh.rotation.y += diff * 0.15;
+                    p.mesh.rotation.y += diff * 0.3;
                 }
 
                 // Force uprightness in physics body
@@ -1160,13 +1160,7 @@
             // 1. INPUT DIRECTION
             let inputDirX = input.x;
             let inputDirZ = input.y;
-            const hasInput = Math.abs(inputDirX) > 0.1 || Math.abs(inputDirZ) > 0.1;
-
-            if (!hasInput) {
-                // Default to facing direction if no input
-                inputDirX = Math.sin(p.mesh.rotation.y);
-                inputDirZ = Math.cos(p.mesh.rotation.y);
-            }
+            const hasInput = Math.abs(inputDirX) > 0.05 || Math.abs(inputDirZ) > 0.05;
 
             // 2. MOVEMENT
             const isSprinting = input.sprint && p.stamina > 0 && hasInput;
@@ -1178,13 +1172,12 @@
                 p.stamina = Math.min(CONFIG.maxStamina, p.stamina + CONFIG.staminaRegenRate * deltaTime);
             }
             
-            const force = CONFIG.playerSpeed * speedMultiplier;
-            p.body.applyForce(
-                new CANNON.Vec3(input.x * force, 0, input.y * force), 
-                p.body.position
-            );
+            // Apply movement force directly for responsiveness
+            const moveForce = CONFIG.playerSpeed * speedMultiplier;
+            p.body.velocity.x = input.x * moveForce * 0.1;
+            p.body.velocity.z = input.y * moveForce * 0.1;
 
-            // 3. DRIBBLING & ARROW
+            // 3. DRIBBLING & ARROW (Fixed Arrow Orientation)
             const dx = p.body.position.x - ball.body.position.x;
             const dz = p.body.position.z - ball.body.position.z;
             const distToBall = Math.sqrt(dx*dx + dz*dz);
@@ -1192,29 +1185,36 @@
             
             const arrow = p.mesh.userData.dirArrow;
             if (hasBall && arrow) {
-                // Position arrow in front of player
-                const mag = Math.sqrt(inputDirX * inputDirX + inputDirZ * inputDirZ);
-                const normX = inputDirX / mag;
-                const normZ = inputDirZ / mag;
+                // Determine facing direction (either from input or current rotation)
+                let faceX = inputDirX;
+                let faceZ = inputDirZ;
+                if (!hasInput) {
+                    faceX = Math.sin(p.mesh.rotation.y);
+                    faceZ = Math.cos(p.mesh.rotation.y);
+                }
+                
+                const mag = Math.sqrt(faceX * faceX + faceZ * faceZ);
+                const normX = faceX / mag;
+                const normZ = faceZ / mag;
 
                 arrow.visible = true;
+                // Position arrow out from player
                 arrow.position.set(
-                    p.body.position.x + normX * 3,
+                    p.body.position.x + normX * 2.5,
                     0.1,
-                    p.body.position.z + normZ * 3
+                    p.body.position.z + normZ * 2.5
                 );
-                arrow.rotation.z = Math.atan2(normX, normZ);
+                // Rotate arrow away from player (+PI to flip correctly)
+                arrow.rotation.z = Math.atan2(normX, normZ) + Math.PI;
 
-                // MAGNETIC DRIBBLING: Keep ball in front of player
+                // MAGNETIC DRIBBLING (Snap-on feel)
                 const targetBallX = p.body.position.x + normX * 1.5;
                 const targetBallZ = p.body.position.z + normZ * 1.5;
                 
-                // Pull ball precisely to the target spot
-                ball.body.velocity.x += (targetBallX - ball.body.position.x) * CONFIG.dribbleFactor;
-                ball.body.velocity.z += (targetBallZ - ball.body.position.z) * CONFIG.dribbleFactor;
-                
-                // Reduce ball bounce/roll when dribbling
-                ball.body.velocity.y *= 0.5;
+                // Set ball velocity to match player + pull towards target point
+                ball.body.velocity.x = p.body.velocity.x + (targetBallX - ball.body.position.x) * 10;
+                ball.body.velocity.z = p.body.velocity.z + (targetBallZ - ball.body.position.z) * 10;
+                ball.body.velocity.y *= 0.5; // Kill bounce when dribbling
             } else if (arrow) {
                 arrow.visible = false;
             }
@@ -1223,10 +1223,15 @@
             if(input.action) {
                 const now = performance.now();
                 if(now - p.lastKickTime > CONFIG.kickCooldown) {
-                    if(distToBall < 2.5) {
-                        // Kick in arrow/input direction
-                        const mag = Math.sqrt(inputDirX * inputDirX + inputDirZ * inputDirZ);
-                        const kickDir = { x: inputDirX / mag, z: inputDirZ / mag };
+                    if(distToBall < 3.0) { // Bigger kick radius for better feel
+                        let faceX = inputDirX;
+                        let faceZ = inputDirZ;
+                        if (!hasInput) {
+                            faceX = Math.sin(p.mesh.rotation.y);
+                            faceZ = Math.cos(p.mesh.rotation.y);
+                        }
+                        const mag = Math.sqrt(faceX * faceX + faceZ * faceZ);
+                        const kickDir = { x: faceX / mag, z: faceZ / mag };
                         
                         kickBall(p, kickDir);
                         p.lastKickTime = now;
@@ -1249,11 +1254,11 @@
             
             kickDirection.normalize();
             
-            // Apply upward lift for "real" feels
+            // Set direct velocity for instant punchy kick
             const power = CONFIG.kickPower;
             ball.body.velocity.set(
                 kickDirection.x * power,
-                5, 
+                4, // Slight lift
                 kickDirection.z * power
             );
             
