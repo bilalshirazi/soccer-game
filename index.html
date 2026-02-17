@@ -75,23 +75,18 @@
         <h1>LOW POLY 5v5 FUTSAL</h1>
         <div class="controls-info">
             <div style="margin-bottom: 20px;">
-                <strong>MOVE</strong><br>
-                Desktop: WASD / Arrow Keys<br>
-                Mobile: Use left joystick
-            </div>
-            <div style="margin-bottom: 20px;">
                 <strong>KICK</strong><br>
-                Desktop: SPACE / F<br>
+                Desktop: 2 / SPACE / F<br>
                 Mobile: Tap KICK button
             </div>
             <div style="margin-bottom: 20px;">
                 <strong>SPRINT</strong><br>
-                Desktop: L-SHIFT / R<br>
+                Desktop: 3 / L-SHIFT / R<br>
                 Mobile: Hold SPRINT button
             </div>
             <div style="margin-bottom: 20px;">
                 <strong>SWITCH PLAYER</strong><br>
-                Desktop: TAB / Q / E<br>
+                Desktop: 1 / TAB / Q / E<br>
                 Mobile: Tap SWITCH button
             </div>
         </div>
@@ -112,7 +107,7 @@
             <div id="stamina-bar"></div>
         </div>
         
-        <div id="keyboard-hints">WASD: Move | SPACE/F: Kick | SHIFT/R: Sprint | TAB/Q/E: Switch</div>
+        <div id="keyboard-hints">1: Switch | 2: Kick | 3: Sprint | WASD to move</div>
         
         <canvas id="minimap"></canvas>
         
@@ -906,19 +901,19 @@
                 if(key === 'a' || e.key === 'ArrowLeft') input.x = -1;
                 if(key === 'd' || e.key === 'ArrowRight') input.x = 1;
                 
-                // Space or F for kick
-                if(e.key === ' ' || key === 'f') {
+                // Space, F, or 2 for kick
+                if(e.key === ' ' || key === 'f' || key === '2') {
                     e.preventDefault();
                     input.action = true;
                 }
                 
-                // Shift or R for sprint
-                if(e.key === 'Shift' || key === 'r') {
+                // Shift, R, or 3 for sprint
+                if(e.key === 'Shift' || key === 'r' || key === '3') {
                     input.sprint = true;
                 }
                 
-                // Tab, Q, or E for player switching
-                if(e.key === 'Tab' || key === 'q' || key === 'e') {
+                // Tab, Q, E, or 1 for player switching
+                if(e.key === 'Tab' || key === 'q' || key === 'e' || key === '1') {
                     e.preventDefault();
                     switchToNearestPlayer();
                 }
@@ -940,8 +935,8 @@
                     else input.x = 0;
                 }
                 
-                if(e.key === ' ' || key === 'f') input.action = false;
-                if(e.key === 'Shift' || key === 'r') input.sprint = false;
+                if(e.key === ' ' || key === 'f' || key === '2') input.action = false;
+                if(e.key === 'Shift' || key === 'r' || key === '3') input.sprint = false;
             });
         }
 
