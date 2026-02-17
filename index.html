@@ -1326,25 +1326,6 @@
                 }
             }
         }
-            if(distToBall < 3.0 && now - p.lastKickTime > CONFIG.kickCooldown) {
-                // Blue attacks right (goalX > myPos), Red attacks left (goalX < myPos)
-                const shouldKick = (p.team === 'blue' && ballPos.x < myPos.x + 1) || 
-                                   (p.team === 'red' && ballPos.x > myPos.x - 1);
-                
-                if(shouldKick) {
-                    const kickDir = new CANNON.Vec3(goalX - ballPos.x, 2, -ballPos.z * 0.2);
-                    kickDir.normalize();
-                    const power = CONFIG.aiKickPower;
-                    ball.body.applyImpulse(
-                        new CANNON.Vec3(kickDir.x * power, kickDir.y * power, kickDir.z * power), 
-                        ball.body.position
-                    );
-                    p.lastKickTime = now;
-                    playSound('kick');
-                    createKickParticles(ball.body.position);
-                }
-            }
-        }
 
         function createKickParticles(position) {
             for(let i = 0; i < 10; i++) {
