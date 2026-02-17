@@ -46,6 +46,11 @@
         #switch-btn { width: 70px; height: 70px; background: rgba(100, 200, 255, 0.5); border-radius: 50%; border: 2px solid white; }
         #switch-btn.active { background: rgba(100, 200, 255, 0.8); transform: scale(0.95); }
         #switch-label { color: white; font-weight: bold; font-size: 14px; margin-top: 8px; }
+
+        #sprint-zone { right: 150px; bottom: 20px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        #sprint-btn { width: 70px; height: 70px; background: rgba(255, 100, 0, 0.5); border-radius: 50%; border: 2px solid white; }
+        #sprint-btn.active { background: rgba(255, 100, 0, 0.8); transform: scale(0.95); }
+        #sprint-label { color: white; font-weight: bold; font-size: 14px; margin-top: 8px; }
         
         /* Joystick Knob */
         #joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; 
@@ -75,13 +80,18 @@
                 Mobile: Use left joystick
             </div>
             <div style="margin-bottom: 20px;">
-                <strong>KICK / SPRINT</strong><br>
-                Desktop: SPACE to Kick | SHIFT to Sprint<br>
-                Mobile: Tap KICK button to Kick
+                <strong>KICK</strong><br>
+                Desktop: SPACE / F<br>
+                Mobile: Tap KICK button
+            </div>
+            <div style="margin-bottom: 20px;">
+                <strong>SPRINT</strong><br>
+                Desktop: L-SHIFT / R<br>
+                Mobile: Hold SPRINT button
             </div>
             <div style="margin-bottom: 20px;">
                 <strong>SWITCH PLAYER</strong><br>
-                Desktop: TAB or Q key<br>
+                Desktop: TAB / Q / E<br>
                 Mobile: Tap SWITCH button
             </div>
         </div>
@@ -102,7 +112,7 @@
             <div id="stamina-bar"></div>
         </div>
         
-        <div id="keyboard-hints">WASD: Move | SPACE: Kick | SHIFT: Sprint | TAB: Switch</div>
+        <div id="keyboard-hints">WASD: Move | SPACE/F: Kick | SHIFT/R: Sprint | TAB/Q/E: Switch</div>
         
         <canvas id="minimap"></canvas>
         
@@ -117,6 +127,10 @@
             <div id="switch-btn"></div>
             <div id="switch-label">SWITCH</div>
         </div>
+        <div id="sprint-zone" class="control-zone">
+            <div id="sprint-btn"></div>
+            <div id="sprint-label">SPRINT</div>
+        </div>
     </div>
 
     <script type="module">
@@ -127,19 +141,19 @@
         const CONFIG = {
             fieldLength: 60, // X-axis (Futsal-like 60 units)
             fieldWidth: 40, // Z-axis (Futsal-like 40 units)
-            playerSpeed: 120, // MASSIVELY INCREASED (was 45)
-            aiSpeed: 100, // INCREASED (was 15)
+            playerSpeed: 180, // INCREASED (was 120)
+            aiSpeed: 140, // INCREASED (was 100)
             ballFriction: 0.1, // Reduced for faster rolling
             playerFriction: 0.5, // Reduced for snappier movement
             matchTime: 120,
             halftimeAt: 60,
             kickCooldown: 300, // Faster kicking
-            sprintMultiplier: 1.6,
+            sprintMultiplier: 1.5,
             maxStamina: 100,
             staminaDrainRate: 25,
             staminaRegenRate: 35, // Faster recovery
-            kickPower: 35, // Stronger kick
-            aiKickPower: 25,
+            kickPower: 40, // INCREASED
+            aiKickPower: 30, // INCREASED
             playerDamping: 0.95, // For snappy stops
             shadowMinScale: 0.3,
             shadowScaleFactor: 0.15,
@@ -250,6 +264,7 @@
             document.getElementById('joystick-zone').style.display = isTouch ? 'block' : 'none';
             document.getElementById('action-zone').style.display = isTouch ? 'block' : 'none';
             document.getElementById('switch-zone').style.display = isTouch ? 'block' : 'none';
+            document.getElementById('sprint-zone').style.display = isTouch ? 'block' : 'none';
             
             clock = new THREE.Clock();
             
@@ -861,34 +876,49 @@
             };
             switchZone.addEventListener('touchend', endSwitch);
             switchZone.addEventListener('touchcancel', endSwitch);
+
+            // Sprint Button
+            const sprintZone = document.getElementById('sprint-zone');
+            const sprintBtn = document.getElementById('sprint-btn');
+            
+            sprintZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                input.sprint = true;
+                sprintBtn.classList.add('active');
+            }, {passive: false});
+
+            const endSprint = (e) => {
+                e.preventDefault();
+                input.sprint = false;
+                sprintBtn.classList.remove('active');
+            };
+            sprintZone.addEventListener('touchend', endSprint);
+            sprintZone.addEventListener('touchcancel', endSprint);
             
             // Keyboard support - WASD + Arrow keys
             window.addEventListener('keydown', (e) => {
                 const key = e.key.toLowerCase();
                 keys[key] = true;
                 
-                // Also store arrow keys in lowercase for consistency
-                if(e.key.startsWith('Arrow')) {
-                    keys[e.key.toLowerCase().replace('arrow', '')] = true;
-                }
-                
-                // WASD
+                // Arrows handled via e.key
                 if(key === 'w' || e.key === 'ArrowUp') input.y = -1;
                 if(key === 's' || e.key === 'ArrowDown') input.y = 1;
                 if(key === 'a' || e.key === 'ArrowLeft') input.x = -1;
                 if(key === 'd' || e.key === 'ArrowRight') input.x = 1;
                 
-                // Space for kick
-                if(e.key === ' ') {
+                // Space or F for kick
+                if(e.key === ' ' || key === 'f') {
                     e.preventDefault();
                     input.action = true;
                 }
                 
-                // Shift for sprint
-                if(e.key === 'Shift') input.sprint = true;
+                // Shift or R for sprint
+                if(e.key === 'Shift' || key === 'r') {
+                    input.sprint = true;
+                }
                 
-                // Tab or Q for player switching
-                if(e.key === 'Tab' || key === 'q') {
+                // Tab, Q, or E for player switching
+                if(e.key === 'Tab' || key === 'q' || key === 'e') {
                     e.preventDefault();
                     switchToNearestPlayer();
                 }
@@ -898,27 +928,20 @@
                 const key = e.key.toLowerCase();
                 keys[key] = false;
                 
-                // Also clear arrow keys stored in lowercase
-                if(e.key.startsWith('Arrow')) {
-                    keys[e.key.toLowerCase().replace('arrow', '')] = false;
-                }
-                
                 if(key === 'w' || key === 's' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                    // Recalculate y based on remaining keys
-                    if(keys['w'] || keys['up']) input.y = -1;
-                    else if(keys['s'] || keys['down']) input.y = 1;
+                    if(keys['w'] || keys['arrowup']) input.y = -1;
+                    else if(keys['s'] || keys['arrowdown']) input.y = 1;
                     else input.y = 0;
                 }
                 
                 if(key === 'a' || key === 'd' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                    // Recalculate x based on remaining keys
-                    if(keys['a'] || keys['left']) input.x = -1;
-                    else if(keys['d'] || keys['right']) input.x = 1;
+                    if(keys['a'] || keys['arrowleft']) input.x = -1;
+                    else if(keys['d'] || keys['arrowright']) input.x = 1;
                     else input.x = 0;
                 }
                 
-                if(e.key === ' ') input.action = false;
-                if(e.key === 'Shift') input.sprint = false;
+                if(e.key === ' ' || key === 'f') input.action = false;
+                if(e.key === 'Shift' || key === 'r') input.sprint = false;
             });
         }
 
