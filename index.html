@@ -147,8 +147,10 @@
             maxStamina: 100,
             staminaDrainRate: 25,
             staminaRegenRate: 35, // Faster recovery
-            kickPower: 40, // INCREASED
-            aiKickPower: 30, // INCREASED
+            kickPower: 45, // INCREASED
+            aiKickPower: 35, // INCREASED
+            dribbleFactor: 0.15, // How much ball is "pulled" toward player
+            dribbleReach: 4, // Distance within which ball is dribbled
             playerDamping: 0.95, // For snappy stops
             shadowMinScale: 0.3,
             shadowScaleFactor: 0.15,
@@ -634,12 +636,16 @@
 
         function createTeam(teamColor, side) {
             const color = teamColor === 'blue' ? CONFIG.colors.blue : CONFIG.colors.red;
-            const startX = side === -1 ? -CONFIG.fieldLength/4 : CONFIG.fieldLength/4;
+            const fieldX = side === -1 ? -CONFIG.fieldLength/2 : CONFIG.fieldLength/2;
             
-            // 5-a-side team
-            for(let i=0; i<5; i++) {
-                const zStart = (i - 2) * 8; // Spread out 5 players
-                const isUser = (teamColor === 'blue' && i === 2); // Middle player as starter
+            // Goalie position
+            createPlayer(fieldX * 0.9, 0, color, false, teamColor, 0); // Keeper
+
+            // Outfield positions
+            const startX = side === -1 ? -CONFIG.fieldLength/6 : CONFIG.fieldLength/6;
+            for(let i=1; i<5; i++) {
+                const zStart = (i - 2.5) * 8; 
+                const isUser = (teamColor === 'blue' && i === 2); 
                 createPlayer(startX, zStart, color, isUser, teamColor, i);
             }
         }
@@ -647,9 +653,15 @@
         function createPlayer(x, z, color, isUser, team, index) {
             const playerGroup = new THREE.Group();
             
+            // Goalie gets different color shirt
+            let shirtColor = color;
+            if (index === 0) {
+                shirtColor = (team === 'blue') ? 0xccff00 : 0x00ffcc; // Fluorescent keeper colors
+            }
+
             // Torso
             const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.5);
-            const torsoMat = new THREE.MeshStandardMaterial({ color });
+            const torsoMat = new THREE.MeshStandardMaterial({ color: shirtColor });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
             torso.castShadow = true;
             playerGroup.add(torso);
@@ -689,6 +701,24 @@
                 controlledPlayerIndex = players.length;
             }
 
+            // Direction arrow for passing
+            const dirArrowContainer = new THREE.Group();
+            const dirArrowGeo = new THREE.PlaneGeometry(1, 2);
+            const dirArrowTexture = createArrowTexture();
+            const dirArrowMat = new THREE.MeshBasicMaterial({ 
+                map: dirArrowTexture, 
+                transparent: true, 
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const dirArrow = new THREE.Mesh(dirArrowGeo, dirArrowMat);
+            dirArrow.rotation.x = -Math.PI/2;
+            dirArrow.position.set(0, -1.0, 2.0); // In front of player
+            dirArrowContainer.add(dirArrow);
+            dirArrowContainer.visible = false;
+            playerGroup.add(dirArrowContainer);
+            playerGroup.userData.dirArrow = dirArrowContainer;
+
             // Physics
             const body = new CANNON.Body({
                 mass: 5,
@@ -701,7 +731,9 @@
             body.angularFactor.set(0, 1, 0);
             world.addBody(body);
 
-            const roles = ['defender', 'midfielder', 'attacker', 'midfielder', 'defender'];
+            let rolesByTeam = ['goalie', 'defender', 'midfielder', 'attacker', 'midfielder'];
+            const playerOrder = index % 5;
+
             const player = { 
                 mesh: playerGroup, 
                 body, 
@@ -709,11 +741,31 @@
                 isUser, 
                 startPos: {x, z}, 
                 id: playerIdCounter++,
-                role: roles[index % roles.length],
+                role: rolesByTeam[playerOrder],
                 lastKickTime: 0,
                 stamina: isUser ? CONFIG.maxStamina : 0
             };
             players.push(player);
+        }
+
+        function createArrowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(32, 0);
+            ctx.lineTo(64, 64);
+            ctx.lineTo(44, 64);
+            ctx.lineTo(44, 128);
+            ctx.lineTo(20, 128);
+            ctx.lineTo(20, 64);
+            ctx.lineTo(0, 64);
+            ctx.closePath();
+            ctx.fill();
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
         }
 
         function createBall() {
@@ -1114,13 +1166,43 @@
                 new CANNON.Vec3(input.x * force, 0, input.y * force), 
                 p.body.position
             );
+
+            // Dribbling - Pull ball toward player if close
+            const distToBall = p.body.position.distanceTo(ball.body.position);
+            const hasBall = distToBall < CONFIG.dribbleReach;
+            
+            if (hasBall) {
+                // Direction player is moving or looking
+                const moveDir = new CANNON.Vec3(input.x, 0, input.y);
+                if (moveDir.length() < 0.1) {
+                    // If not moving, pull ball to front of player
+                    const forward = new CANNON.Vec3(Math.sin(p.mesh.rotation.y), 0, Math.cos(p.mesh.rotation.y));
+                    moveDir.copy(forward);
+                }
+                moveDir.normalize();
+
+                // Target position just in front of player
+                const targetBallPos = p.body.position.clone();
+                targetBallPos.x += moveDir.x * 1.5;
+                targetBallPos.z += moveDir.z * 1.5;
+
+                // Apply soft pull toward target position
+                const pull = targetBallPos.vsub(ball.body.position);
+                ball.body.velocity.x += pull.x * CONFIG.dribbleFactor;
+                ball.body.velocity.z += pull.z * CONFIG.dribbleFactor;
+
+                // Show direction arrow
+                p.mesh.userData.dirArrow.visible = true;
+                p.mesh.userData.dirArrow.rotation.y = Math.atan2(moveDir.x, moveDir.z) - p.mesh.rotation.y;
+            } else {
+                p.mesh.userData.dirArrow.visible = false;
+            }
             
             // Kick action
             if(input.action) {
                 const now = performance.now();
                 if(now - p.lastKickTime > CONFIG.kickCooldown) {
-                    const dist = p.body.position.distanceTo(ball.body.position);
-                    if(dist < 2.5) {
+                    if(distToBall < 2.5) {
                         kickBall(p);
                         p.lastKickTime = now;
                         input.action = false;
@@ -1168,8 +1250,18 @@
             const goalX = p.team === 'blue' ? CONFIG.fieldLength/2 : -CONFIG.fieldLength/2;
             const myGoalX = p.team === 'blue' ? -CONFIG.fieldLength/2 : CONFIG.fieldLength/2;
 
-            // Role-based AI
-            if(p.role === 'attacker') {
+            // Goalie AI logic
+            if (p.role === 'goalie') {
+                // Stay in front of ball, but don't wander far from goal
+                const targetZ = Math.max(-5, Math.min(5, ballPos.z));
+                const targetX = myGoalX * 0.95; // Right on line
+                target.set(targetX, myPos.y, targetZ);
+                
+                // If ball is very close to goal, go for it
+                if (distToBall < 8) {
+                    target.copy(ballPos);
+                }
+            } else if(p.role === 'attacker') {
                 if(distToBall < 15) {
                     target.copy(ballPos);
                 } else {
@@ -1195,9 +1287,31 @@
             dir.y = 0;
             dir.normalize();
             
+            // Dribbling for AI
+            if (distToBall < 2.0) {
+                // Pull ball toward opponent goal
+                const pullDir = new CANNON.Vec3(goalX - ballPos.x, 0, -ballPos.z);
+                pullDir.normalize();
+                ball.body.velocity.x += pullDir.x * 0.1;
+                ball.body.velocity.z += pullDir.z * 0.1;
+            }
+
             p.body.applyForce(new CANNON.Vec3(dir.x * speed, 0, dir.z * speed), p.body.position);
 
             // Kick logic when positioned to attack (ball is between AI and opponent goal)
+            if (distToBall < 2.5 && now - p.lastKickTime > CONFIG.kickCooldown) {
+                // If in front of opponent goal, shoot!
+                const withinXRange = p.team === 'blue' ? ballPos.x > 10 : ballPos.x < -10;
+                if (withinXRange) {
+                    kickBall(p);
+                    p.lastKickTime = now;
+                } else if (distToBall < 1.0) {
+                    // Just nudge it to keep it moving
+                    kickBall(p);
+                    p.lastKickTime = now;
+                }
+            }
+        }
             if(distToBall < 3.0 && now - p.lastKickTime > CONFIG.kickCooldown) {
                 // Blue attacks right (goalX > myPos), Red attacks left (goalX < myPos)
                 const shouldKick = (p.team === 'blue' && ballPos.x < myPos.x + 1) || 
