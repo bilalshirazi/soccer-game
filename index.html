@@ -37,12 +37,17 @@
         /* Controls */
         .control-zone { position: absolute; bottom: 20px; height: 150px; width: 150px; pointer-events: auto; }
         #joystick-zone { left: 20px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
-        #action-zone { right: 20px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); 
+        #action-zone { bottom: 120px; right: 20px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); 
             display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        #pass-zone { bottom: 120px; right: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); 
+            display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        #pass-btn { width: 80px; height: 80px; background: rgba(0, 255, 100, 0.5); border-radius: 50%; border: 2px solid white; }
+        #pass-btn.active { background: rgba(0, 255, 100, 0.8); transform: scale(0.95); }
+        #pass-label { color: white; font-weight: bold; font-size: 18px; margin-top: 10px; }
         #action-btn { width: 80px; height: 80px; background: rgba(255, 200, 0, 0.5); border-radius: 50%; border: 2px solid white; }
         #action-btn.active { background: rgba(255, 200, 0, 0.8); transform: scale(0.95); }
         #action-label { color: white; font-weight: bold; font-size: 18px; margin-top: 10px; }
-        #switch-zone { right: 20px; bottom: 190px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        #switch-zone { right: 20px; bottom: 20px; height: 120px; width: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; flex-direction: column; }
         #switch-btn { width: 70px; height: 70px; background: rgba(100, 200, 255, 0.5); border-radius: 50%; border: 2px solid white; }
         #switch-btn.active { background: rgba(100, 200, 255, 0.8); transform: scale(0.95); }
         #switch-label { color: white; font-weight: bold; font-size: 14px; margin-top: 8px; }
@@ -80,6 +85,11 @@
                 Mobile: Tap KICK button
             </div>
             <div style="margin-bottom: 20px;">
+                <strong>PASS</strong><br>
+                Desktop: 4 / G<br>
+                Mobile: Tap PASS button
+            </div>
+            <div style="margin-bottom: 20px;">
                 <strong>SPRINT</strong><br>
                 Desktop: 3 / L-SHIFT / R<br>
                 Mobile: Hold SPRINT button
@@ -107,7 +117,7 @@
             <div id="stamina-bar"></div>
         </div>
         
-        <div id="keyboard-hints">1: Switch | 2: Kick | 3: Sprint | WASD to move</div>
+        <div id="keyboard-hints">1: Switch | 2: Kick | 4: Pass | 3: Sprint</div>
         
         <canvas id="minimap"></canvas>
         
@@ -117,6 +127,10 @@
         <div id="action-zone" class="control-zone">
             <div id="action-btn"></div>
             <div id="action-label">KICK</div>
+        </div>
+        <div id="pass-zone" class="control-zone">
+            <div id="pass-btn"></div>
+            <div id="pass-label">PASS</div>
         </div>
         <div id="switch-zone" class="control-zone">
             <div id="switch-btn"></div>
@@ -136,20 +150,21 @@
         const CONFIG = {
             fieldLength: 60, 
             fieldWidth: 40, 
-            playerSpeed: 450, // CRANKED UP
-            aiSpeed: 250, 
+            playerSpeed: 300, // Reduced from 450 to 300 (balanced)
+            aiSpeed: 180, 
             ballFriction: 0.1, 
             playerFriction: 0.1,
             matchTime: 120,
             halftimeAt: 60,
             kickCooldown: 200, 
-            sprintMultiplier: 1.8,
+            sprintMultiplier: 1.5,
             maxStamina: 100,
             staminaDrainRate: 15,
             staminaRegenRate: 50,
-            kickPower: 80, // BIG KICK
+            kickPower: 85, // Stronger kick
+            passPower: 50, // Dedicated pass speed
             aiKickPower: 50,
-            dribbleFactor: 0.8, // VERY SNAP TO BALL
+            dribbleFactor: 0.5, 
             dribbleReach: 3.5,
             playerDamping: 0.8,
             shadowMinScale: 0.3,
@@ -173,7 +188,7 @@
         let scene, camera, renderer, world;
         let clock, deltaTime, lastTime = 0;
         let players = [], ball, ballShadow;
-        let input = { x: 0, y: 0, action: false, sprint: false, switchPlayer: false };
+        let input = { x: 0, y: 0, action: false, pass: false, sprint: false, switchPlayer: false };
         let keys = {};
         let gameState = { 
             active: false, 
@@ -948,6 +963,24 @@
             sprintZone.addEventListener('touchend', endSprint);
             sprintZone.addEventListener('touchcancel', endSprint);
             
+            // Pass Button
+            const passZone = document.getElementById('pass-zone');
+            const passBtn = document.getElementById('pass-btn');
+            
+            passZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                input.pass = true;
+                passBtn.classList.add('active');
+            }, {passive: false});
+
+            const endPass = (e) => {
+                e.preventDefault();
+                input.pass = false;
+                passBtn.classList.remove('active');
+            };
+            passZone.addEventListener('touchend', endPass);
+            passZone.addEventListener('touchcancel', endPass);
+
             // Keyboard support - WASD + Arrow keys
             window.addEventListener('keydown', (e) => {
                 const key = e.key.toLowerCase();
@@ -963,6 +996,12 @@
                 if(e.key === ' ' || key === 'f' || key === '2') {
                     e.preventDefault();
                     input.action = true;
+                }
+
+                // G or 4 for pass
+                if(key === 'g' || key === '4') {
+                    e.preventDefault();
+                    input.pass = true;
                 }
                 
                 // Shift, R, or 3 for sprint
@@ -994,6 +1033,7 @@
                 }
                 
                 if(e.key === ' ' || key === 'f' || key === '2') input.action = false;
+                if(key === 'g' || key === '4') input.pass = false;
                 if(e.key === 'Shift' || key === 'r' || key === '3') input.sprint = false;
             });
         }
@@ -1207,20 +1247,20 @@
                 // Rotate arrow away from player (+PI to flip correctly)
                 arrow.rotation.z = Math.atan2(normX, normZ) + Math.PI;
 
-                // MAGNETIC DRIBBLING (Snap-on feel)
-                const targetBallX = p.body.position.x + normX * 1.5;
-                const targetBallZ = p.body.position.z + normZ * 1.5;
+            // MAGNETIC DRIBBLING (Snap-on feel)
+                const targetBallX = p.body.position.x + normX * 1.6; // Moved out to 1.6 to prevent overlap
+                const targetBallZ = p.body.position.z + normZ * 1.6; 
                 
                 // Set ball velocity to match player + pull towards target point
-                ball.body.velocity.x = p.body.velocity.x + (targetBallX - ball.body.position.x) * 10;
-                ball.body.velocity.z = p.body.velocity.z + (targetBallZ - ball.body.position.z) * 10;
-                ball.body.velocity.y *= 0.5; // Kill bounce when dribbling
+                ball.body.velocity.x = p.body.velocity.x + (targetBallX - ball.body.position.x) * 8; // Slower pull rate (8)
+                ball.body.velocity.z = p.body.velocity.z + (targetBallZ - ball.body.position.z) * 8;
+                ball.body.velocity.y *= 0.1; // Aggressively kill bounce when dribbling
             } else if (arrow) {
                 arrow.visible = false;
             }
             
-            // 4. KICKING
-            if(input.action) {
+            // 4. KICKING & PASSING
+            if(input.action || input.pass) {
                 const now = performance.now();
                 if(now - p.lastKickTime > CONFIG.kickCooldown) {
                     if(distToBall < 3.0) { // Bigger kick radius for better feel
@@ -1233,15 +1273,16 @@
                         const mag = Math.sqrt(faceX * faceX + faceZ * faceZ);
                         const kickDir = { x: faceX / mag, z: faceZ / mag };
                         
-                        kickBall(p, kickDir);
+                        kickBall(p, kickDir, input.pass);
                         p.lastKickTime = now;
                         input.action = false;
+                        input.pass = false;
                     }
                 }
             }
         }
 
-        function kickBall(player, dir = null) {
+        function kickBall(player, dir = null, isPass = false) {
             let kickDirection;
             
             if (dir) {
@@ -1255,10 +1296,10 @@
             kickDirection.normalize();
             
             // Set direct velocity for instant punchy kick
-            const power = CONFIG.kickPower;
+            const power = isPass ? CONFIG.passPower : CONFIG.kickPower;
             ball.body.velocity.set(
                 kickDirection.x * power,
-                4, // Slight lift
+                isPass ? 1 : 4, // Pass stays low, kick has slight lift
                 kickDirection.z * power
             );
             
