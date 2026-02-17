@@ -67,12 +67,23 @@
     <div id="game-container"></div>
     
     <div id="start-screen">
-        <h1>LOW POLY SOCCER 3v3</h1>
+        <h1>LOW POLY 5v5 FUTSAL</h1>
         <div class="controls-info">
-            <strong>DESKTOP CONTROLS:</strong><br>
-            WASD / Arrow Keys: Move | SPACE: Kick | SHIFT: Sprint | TAB / Q: Switch Player<br><br>
-            <strong>MOBILE CONTROLS:</strong><br>
-            Left Joystick: Move | Right Button: Kick
+            <div style="margin-bottom: 20px;">
+                <strong>MOVE</strong><br>
+                Desktop: WASD / Arrow Keys<br>
+                Mobile: Use left joystick
+            </div>
+            <div style="margin-bottom: 20px;">
+                <strong>KICK / SPRINT</strong><br>
+                Desktop: SPACE to Kick | SHIFT to Sprint<br>
+                Mobile: Tap KICK button to Kick
+            </div>
+            <div style="margin-bottom: 20px;">
+                <strong>SWITCH PLAYER</strong><br>
+                Desktop: TAB or Q key<br>
+                Mobile: Tap SWITCH button
+            </div>
         </div>
         <button id="start-btn">START GAME</button>
     </div>
@@ -114,26 +125,28 @@
 
         // --- CONFIGURATION ---
         const CONFIG = {
-            fieldLength: 50, // X-axis (East-West, goal-to-goal)
-            fieldWidth: 30, // Z-axis (side-to-side)
-            playerSpeed: 45,
-            aiSpeed: 15,
-            ballFriction: 0.3,
-            playerFriction: 0.9,
+            fieldLength: 60, // X-axis (Futsal-like 60 units)
+            fieldWidth: 40, // Z-axis (Futsal-like 40 units)
+            playerSpeed: 120, // MASSIVELY INCREASED (was 45)
+            aiSpeed: 100, // INCREASED (was 15)
+            ballFriction: 0.1, // Reduced for faster rolling
+            playerFriction: 0.5, // Reduced for snappier movement
             matchTime: 120,
             halftimeAt: 60,
-            kickCooldown: 500,
-            sprintMultiplier: 1.5,
+            kickCooldown: 300, // Faster kicking
+            sprintMultiplier: 1.6,
             maxStamina: 100,
-            staminaDrainRate: 30,
-            staminaRegenRate: 20,
+            staminaDrainRate: 25,
+            staminaRegenRate: 35, // Faster recovery
+            kickPower: 35, // Stronger kick
+            aiKickPower: 25,
+            playerDamping: 0.95, // For snappy stops
             shadowMinScale: 0.3,
             shadowScaleFactor: 0.15,
             shadowMinOpacity: 0.2,
             shadowBaseOpacity: 0.5,
             shadowOpacityFactor: 0.1,
             shadowHeightOffset: 0.5,
-            particleMaxLife: 2,
             colors: {
                 grassLight: 0x4caf50,
                 grassDark: 0x3d9142,
@@ -231,13 +244,12 @@
             setupInputs();
             setupAudio();
             
-            // Show keyboard hints on desktop
-            if(!isTouchDevice()) {
-                document.getElementById('keyboard-hints').style.display = 'block';
-                document.getElementById('joystick-zone').style.display = 'none';
-                document.getElementById('action-zone').style.display = 'none';
-                document.getElementById('switch-zone').style.display = 'none';
-            }
+            // Set up controls based on device
+            const isTouch = isTouchDevice();
+            document.getElementById('keyboard-hints').style.display = isTouch ? 'none' : 'block';
+            document.getElementById('joystick-zone').style.display = isTouch ? 'block' : 'none';
+            document.getElementById('action-zone').style.display = isTouch ? 'block' : 'none';
+            document.getElementById('switch-zone').style.display = isTouch ? 'block' : 'none';
             
             clock = new THREE.Clock();
             
@@ -340,30 +352,23 @@
             circleMesh.position.y = 0.02;
             scene.add(circleMesh);
 
-            // Penalty areas (18-yard boxes) - realistic proportions
-            // Depth: 16.5 units (18 yards scaled), Width: 20 units (44 yards scaled)
-            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 20);
-            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 20);
+            // Penalty areas (Futsal style arcs are usually 6m, using boxes here)
+            // Depth: 10m (scaled), Width: 24m (scaled)
+            createPenaltyArea(-CONFIG.fieldLength/2, 10, 24);
+            createPenaltyArea(CONFIG.fieldLength/2, 10, 24);
             
-            // Goal areas (6-yard boxes) - realistic proportions
-            // Depth: 5.5 units (6 yards scaled), Width: 11 units (20 yards scaled)
-            createGoalArea(-CONFIG.fieldLength/2, 5.5, 11);
-            createGoalArea(CONFIG.fieldLength/2, 5.5, 11);
-            // Penalty areas (18-yard boxes) near goals
-            createPenaltyArea(-CONFIG.fieldLength/2, 16.5, 18);
-            createPenaltyArea(CONFIG.fieldLength/2, 16.5, 18);
+            // Goal areas
+            // Depth: 5m (scaled), Width: 12m (scaled)
+            createGoalArea(-CONFIG.fieldLength/2, 5, 12);
+            createGoalArea(CONFIG.fieldLength/2, 5, 12);
             
-            // Goal areas (6-yard boxes) near goals
-            createGoalArea(-CONFIG.fieldLength/2, 5.5, 9);
-            createGoalArea(CONFIG.fieldLength/2, 5.5, 9);
-            
-            // Penalty spots - 11 units from goal line (12 yards scaled)
-            createPenaltySpot(-CONFIG.fieldLength/2 + 11);
-            createPenaltySpot(CONFIG.fieldLength/2 - 11);
+            // Penalty spots - 6m and 10m in Futsal, using 10m here
+            createPenaltySpot(-CONFIG.fieldLength/2 + 10);
+            createPenaltySpot(CONFIG.fieldLength/2 - 10);
             
             // Penalty arcs - centered on penalty spot
-            createPenaltyArc(-CONFIG.fieldLength/2 + 11);
-            createPenaltyArc(CONFIG.fieldLength/2 - 11);
+            createPenaltyArc(-CONFIG.fieldLength/2 + 10);
+            createPenaltyArc(CONFIG.fieldLength/2 - 10);
 
             // Corner arcs
             createCornerArc(-CONFIG.fieldLength/2, -CONFIG.fieldWidth/2);
@@ -621,85 +626,72 @@
             const color = teamColor === 'blue' ? CONFIG.colors.blue : CONFIG.colors.red;
             const startX = side === -1 ? -CONFIG.fieldLength/4 : CONFIG.fieldLength/4;
             
-            for(let i=0; i<3; i++) {
-                const zStart = (i - 1) * 8;
-                const isUser = (teamColor === 'blue' && i === 0);
+            // 5-a-side team
+            for(let i=0; i<5; i++) {
+                const zStart = (i - 2) * 8; // Spread out 5 players
+                const isUser = (teamColor === 'blue' && i === 2); // Middle player as starter
                 createPlayer(startX, zStart, color, isUser, teamColor, i);
             }
         }
 
         function createPlayer(x, z, color, isUser, team, index) {
-            // LOW-POLY HUMANOID
             const playerGroup = new THREE.Group();
             
-            // Head (sphere) - positioned so whole body is properly aligned with physics body at Y=0.8
-            const headGeo = new THREE.SphereGeometry(0.4, 8, 8);
-            const headMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 0.8; // Y=0.8 in group space = Y=1.6 in world (head center)
-            head.castShadow = true;
-            playerGroup.add(head);
-            
-            // Torso (box)
-            const torsoGeo = new THREE.BoxGeometry(0.8, 1, 0.5);
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.5);
             const torsoMat = new THREE.MeshStandardMaterial({ color });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.y = 0; // Y=0 in group space = Y=0.8 in world (torso center)
             torso.castShadow = true;
             playerGroup.add(torso);
             
-            // Arms (cylinders)
-            const armGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 6);
-            const armMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.skin });
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.35, 8, 8);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.8;
+            head.castShadow = true;
+            playerGroup.add(head);
             
-            const leftArm = new THREE.Mesh(armGeo, armMat);
-            leftArm.position.set(-0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
-            leftArm.castShadow = true;
-            playerGroup.add(leftArm);
-            
-            const rightArm = new THREE.Mesh(armGeo, armMat);
-            rightArm.position.set(0.5, -0.1, 0); // Y=-0.1 in group space = Y=0.7 in world
-            rightArm.castShadow = true;
-            playerGroup.add(rightArm);
-            
-            // Legs (cylinders) - height 0.8, positioned so feet touch ground when body at Y=0.8
-            const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6);
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
             const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            
             const leftLeg = new THREE.Mesh(legGeo, legMat);
-            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
-            leftLeg.position.set(-0.25, -0.4, 0);
+            leftLeg.position.set(-0.2, -0.7, 0);
             leftLeg.castShadow = true;
             playerGroup.add(leftLeg);
             
             const rightLeg = new THREE.Mesh(legGeo, legMat);
-            // Position at Y=-0.4 so leg extends from Y=-0.8 to Y=0 in group space (Y=0 to Y=0.8 in world)
-            rightLeg.position.set(0.25, -0.4, 0);
+            rightLeg.position.set(0.2, -0.7, 0);
             rightLeg.castShadow = true;
             playerGroup.add(rightLeg);
             
-            // User indicator
-            if(isUser) {
-                const arrowGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
-                const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-                arrow.position.y = 1.7; // Y=1.7 in group space = Y=2.5 in world (above head)
-                playerGroup.add(arrow);
-                playerGroup.userData.arrow = arrow;
-            }
-            
+            playerGroup.position.set(x, 1.1, z);
             scene.add(playerGroup);
 
+            // User indicator
+            if(isUser) {
+                const arrowGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+                const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+                arrow.position.y = 1.5;
+                playerGroup.add(arrow);
+                playerGroup.userData.arrow = arrow;
+                controlledPlayerIndex = players.length;
+            }
+
             // Physics
-            const shape = new CANNON.Sphere(0.8);
-            const body = new CANNON.Body({ mass: 5, material: playerMat });
-            body.addShape(shape);
-            body.position.set(x, 0.8, z);
-            body.linearDamping = 0.9;
+            const body = new CANNON.Body({
+                mass: 5,
+                shape: new CANNON.Sphere(0.8),
+                material: playerMat
+            });
+            body.position.set(x, 1.1, z);
+            body.linearDamping = 0.5;
             body.angularDamping = 0.99;
+            body.angularFactor.set(0, 1, 0);
             world.addBody(body);
 
-            const roles = ['attacker', 'midfielder', 'defender'];
+            const roles = ['defender', 'midfielder', 'attacker', 'midfielder', 'defender'];
             const player = { 
                 mesh: playerGroup, 
                 body, 
@@ -707,7 +699,7 @@
                 isUser, 
                 startPos: {x, z}, 
                 id: playerIdCounter++,
-                role: roles[index],
+                role: roles[index % roles.length],
                 lastKickTime: 0,
                 stamina: isUser ? CONFIG.maxStamina : 0
             };
@@ -750,6 +742,7 @@
             const mat = new THREE.MeshStandardMaterial({ map: texture });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.castShadow = true;
+            mesh.position.set(0, 2, 0);
             scene.add(mesh);
 
             const shape = new CANNON.Sphere(0.5);
@@ -1029,32 +1022,24 @@
 
             // Update players
             players.forEach((p, index) => {
-                // Clamp player body to minimum height to prevent clipping
-                if(p.body.position.y < 0.4) {
-                    p.body.position.y = 0.4;
-                    p.body.velocity.y = 0;
+                // Synchronize physics to mesh
+                p.mesh.position.set(p.body.position.x, p.body.position.y, p.body.position.z);
+                
+                // Rotation handling
+                const vel = p.body.velocity;
+                const speedSq = vel.x * vel.x + vel.z * vel.z;
+                
+                if (speedSq > 0.1) {
+                    const targetAngle = Math.atan2(vel.x, vel.z);
+                    const currentAngle = p.mesh.rotation.y;
+                    let diff = targetAngle - currentAngle;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    p.mesh.rotation.y += diff * 0.15;
                 }
-                
-                // Prevent rolling (x/z rotation) but allow turning (y rotation)
-                p.body.angularVelocity.x = 0;
-                p.body.angularVelocity.z = 0;
-                
-                // Update mesh position and rotation
-                p.mesh.position.copy(p.body.position);
-                
-                // Keep player upright by zeroing x/z rotation, preserve y-rotation for facing
-                const euler = new THREE.Euler();
-                euler.setFromQuaternion(p.body.quaternion, 'YXZ');
-                
-                // Only correct if tilted significantly (threshold to avoid constant corrections)
-                if(Math.abs(euler.x) > 0.01 || Math.abs(euler.z) > 0.01) {
-                    const uprightEuler = new THREE.Euler(0, euler.y, 0, 'YXZ');
-                    const uprightQuat = new THREE.Quaternion().setFromEuler(uprightEuler);
-                    p.body.quaternion.copy(uprightQuat);
-                }
-                
-                // Update mesh to match body rotation
-                p.mesh.rotation.set(0, euler.y, 0);
+
+                // Force uprightness in physics body
+                p.body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), p.mesh.rotation.y);
 
                 if(p.isUser) {
                     updateUserPlayer(p);
@@ -1141,9 +1126,9 @@
             }
             
             kickDir.normalize();
-            const kickPower = 25;
+            const power = CONFIG.kickPower;
             ball.body.applyImpulse(
-                new CANNON.Vec3(kickDir.x * kickPower, 3, kickDir.z * kickPower), 
+                new CANNON.Vec3(kickDir.x * power, 5, kickDir.z * power), 
                 ball.body.position
             );
             
@@ -1195,17 +1180,17 @@
             p.body.applyForce(new CANNON.Vec3(dir.x * speed, 0, dir.z * speed), p.body.position);
 
             // Kick logic when positioned to attack (ball is between AI and opponent goal)
-            if(distToBall < 2.5 && now - p.lastKickTime > CONFIG.kickCooldown) {
+            if(distToBall < 3.0 && now - p.lastKickTime > CONFIG.kickCooldown) {
                 // Blue attacks right (goalX > myPos), Red attacks left (goalX < myPos)
-                const shouldKick = (p.team === 'blue' && ballPos.x < myPos.x) || 
-                                   (p.team === 'red' && ballPos.x > myPos.x);
+                const shouldKick = (p.team === 'blue' && ballPos.x < myPos.x + 1) || 
+                                   (p.team === 'red' && ballPos.x > myPos.x - 1);
                 
                 if(shouldKick) {
                     const kickDir = new CANNON.Vec3(goalX - ballPos.x, 2, -ballPos.z * 0.2);
                     kickDir.normalize();
-                    const kickForce = 18;
+                    const power = CONFIG.aiKickPower;
                     ball.body.applyImpulse(
-                        new CANNON.Vec3(kickDir.x * kickForce, kickDir.y * kickForce, kickDir.z * kickForce), 
+                        new CANNON.Vec3(kickDir.x * power, kickDir.y * power, kickDir.z * power), 
                         ball.body.position
                     );
                     p.lastKickTime = now;
