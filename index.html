@@ -275,6 +275,7 @@
             document.getElementById('keyboard-hints').style.display = isTouch ? 'none' : 'block';
             document.getElementById('joystick-zone').style.display = isTouch ? 'block' : 'none';
             document.getElementById('action-zone').style.display = isTouch ? 'block' : 'none';
+            document.getElementById('pass-zone').style.display = isTouch ? 'block' : 'none';
             document.getElementById('switch-zone').style.display = isTouch ? 'block' : 'none';
             document.getElementById('sprint-zone').style.display = isTouch ? 'block' : 'none';
             
@@ -1147,7 +1148,18 @@
                 const vel = p.body.velocity;
                 const speedSq = vel.x * vel.x + vel.z * vel.z;
                 
-                if (speedSq > 0.1) {
+                if (p.role === 'goalie') {
+                    // Goalies always face the ball
+                    const dx = ball.body.position.x - p.body.position.x;
+                    const dz = ball.body.position.z - p.body.position.z;
+                    const targetAngle = Math.atan2(dx, dz);
+                    
+                    const currentAngle = p.mesh.rotation.y;
+                    let diff = targetAngle - currentAngle;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    p.mesh.rotation.y += diff * 0.1; 
+                } else if (speedSq > 0.1) {
                     const targetAngle = Math.atan2(vel.x, vel.z);
                     const currentAngle = p.mesh.rotation.y;
                     let diff = targetAngle - currentAngle;
@@ -1248,6 +1260,10 @@
                 arrow.rotation.z = Math.atan2(normX, normZ) + Math.PI;
 
             // MAGNETIC DRIBBLING (Snap-on feel)
+            // Only apply if not recently kicked (500ms cooldown)
+            const kickCooldownTime = 500; 
+            const now = performance.now();
+            if (now - p.lastKickTime > kickCooldownTime) {
                 const targetBallX = p.body.position.x + normX * 1.6; // Moved out to 1.6 to prevent overlap
                 const targetBallZ = p.body.position.z + normZ * 1.6; 
                 
@@ -1255,6 +1271,7 @@
                 ball.body.velocity.x = p.body.velocity.x + (targetBallX - ball.body.position.x) * 8; // Slower pull rate (8)
                 ball.body.velocity.z = p.body.velocity.z + (targetBallZ - ball.body.position.z) * 8;
                 ball.body.velocity.y *= 0.1; // Aggressively kill bounce when dribbling
+            }
             } else if (arrow) {
                 arrow.visible = false;
             }
