@@ -1003,7 +1003,9 @@
             
             players.forEach((p, i) => {
                 if(p.team === 'blue' && i !== controlledPlayerIndex) {
-                    const dist = p.body.position.distanceTo(ballPos);
+                    const dx = p.body.position.x - ballPos.x;
+                    const dz = p.body.position.z - ballPos.z;
+                    const dist = Math.sqrt(dx*dx + dz*dz);
                     if(dist < nearestDist) {
                         nearestDist = dist;
                         nearestIndex = i;
@@ -1168,34 +1170,41 @@
             );
 
             // Dribbling - Pull ball toward player if close
-            const distToBall = p.body.position.distanceTo(ball.body.position);
+            const dx = p.body.position.x - ball.body.position.x;
+            const dz = p.body.position.z - ball.body.position.z;
+            const distToBall = Math.sqrt(dx*dx + dz*dz);
             const hasBall = distToBall < CONFIG.dribbleReach;
             
             if (hasBall) {
                 // Direction player is moving or looking
-                const moveDir = new CANNON.Vec3(input.x, 0, input.y);
-                if (moveDir.length() < 0.1) {
+                let moveDirX = input.x;
+                let moveDirZ = input.y;
+                
+                if (Math.abs(moveDirX) < 0.1 && Math.abs(moveDirZ) < 0.1) {
                     // If not moving, pull ball to front of player
-                    const forward = new CANNON.Vec3(Math.sin(p.mesh.rotation.y), 0, Math.cos(p.mesh.rotation.y));
-                    moveDir.copy(forward);
+                    moveDirX = Math.sin(p.mesh.rotation.y);
+                    moveDirZ = Math.cos(p.mesh.rotation.y);
                 }
-                moveDir.normalize();
 
                 // Target position just in front of player
-                const targetBallPos = p.body.position.clone();
-                targetBallPos.x += moveDir.x * 1.5;
-                targetBallPos.z += moveDir.z * 1.5;
+                const targetX = p.body.position.x + moveDirX * 1.5;
+                const targetZ = p.body.position.z + moveDirZ * 1.5;
 
                 // Apply soft pull toward target position
-                const pull = targetBallPos.vsub(ball.body.position);
-                ball.body.velocity.x += pull.x * CONFIG.dribbleFactor;
-                ball.body.velocity.z += pull.z * CONFIG.dribbleFactor;
+                const pullX = targetX - ball.body.position.x;
+                const pullZ = targetZ - ball.body.position.z;
+                
+                ball.body.velocity.x += pullX * CONFIG.dribbleFactor;
+                ball.body.velocity.z += pullZ * CONFIG.dribbleFactor;
 
                 // Show direction arrow
-                p.mesh.userData.dirArrow.visible = true;
-                p.mesh.userData.dirArrow.rotation.y = Math.atan2(moveDir.x, moveDir.z) - p.mesh.rotation.y;
+                const arrow = p.mesh.userData.dirArrow;
+                if (arrow) {
+                    arrow.visible = true;
+                    arrow.rotation.y = Math.atan2(moveDirX, moveDirZ) - p.mesh.rotation.y;
+                }
             } else {
-                p.mesh.userData.dirArrow.visible = false;
+                if (p.mesh.userData.dirArrow) p.mesh.userData.dirArrow.visible = false;
             }
             
             // Kick action
@@ -1241,7 +1250,9 @@
             
             const ballPos = ball.body.position;
             const myPos = p.body.position;
-            const distToBall = myPos.distanceTo(ballPos);
+            const dx = myPos.x - ballPos.x;
+            const dz = myPos.z - ballPos.z;
+            const distToBall = Math.sqrt(dx*dx + dz*dz);
             const now = performance.now();
             
             let target = new CANNON.Vec3();
@@ -1290,10 +1301,13 @@
             // Dribbling for AI
             if (distToBall < 2.0) {
                 // Pull ball toward opponent goal
-                const pullDir = new CANNON.Vec3(goalX - ballPos.x, 0, -ballPos.z);
-                pullDir.normalize();
-                ball.body.velocity.x += pullDir.x * 0.1;
-                ball.body.velocity.z += pullDir.z * 0.1;
+                const pullDirX = goalX - ballPos.x;
+                const pullDirZ = -ballPos.z;
+                const pullMag = Math.sqrt(pullDirX*pullDirX + pullDirZ*pullDirZ);
+                if (pullMag > 0.1) {
+                    ball.body.velocity.x += (pullDirX/pullMag) * 0.1;
+                    ball.body.velocity.z += (pullDirZ/pullMag) * 0.1;
+                }
             }
 
             p.body.applyForce(new CANNON.Vec3(dir.x * speed, 0, dir.z * speed), p.body.position);
